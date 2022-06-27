@@ -25,13 +25,13 @@ func main() {
 	// However, this one will match /user/john/ and also /user/john/send
 	// If no other routers match /user/john, it will redirect to /user/john/
 	r.GET("/user/:name/*action", controllers.SimpleRequest4)
-
 	r.POST("/user/:name/*action", controllers.SimpleRequest5)
 
 	models.ConnectDB()
 	r.GET("/products", controllers.FindProducts)
 	r.GET("/products/:id/details", controllers.ProductDetails)
 	r.POST("/products", controllers.CreateProduct)
+	r.PATCH("/products/:id", controllers.UpdateProduct)
 
 	r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

@@ -34,14 +34,40 @@ type CreateProductInput struct {
 }
 
 func CreateProduct(c *gin.Context) {
-	var input CreateProductInput
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var create CreateProductInput
+	if err := c.ShouldBindJSON(&create); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	product := models.Product{Code: input.Code, Price: input.Price}
+	product := models.Product{Code: create.Code, Price: create.Price}
 	models.DB.Create(&product)
+	fmt.Println(create)
+	c.JSON(http.StatusOK, gin.H{"data": product})
+}
 
+type UpdateProductInput struct {
+	Code	string	`json:"code"`
+	Price	uint		`json:"price"`
+}
+
+func UpdateProduct(c *gin.Context) {
+	//get model if exist
+	var product models.Product
+	if err := models.DB.Where("id = ?", c.Param("id")).First(&product).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak ditemukan!"})
+		return
+	}
+	// validate input
+	var update UpdateProductInput
+	if err := c.ShouldBindJSON(&update); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	fmt.Println(product)
+	fmt.Println(update)
+
+	updatedProduct := models.Product{Code: update.Code, Price: update.Price}
+	models.DB.Model(&product).Updates(&updatedProduct)
 	c.JSON(http.StatusOK, gin.H{"data": product})
 }
