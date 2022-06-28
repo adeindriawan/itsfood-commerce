@@ -42,7 +42,6 @@ func CreateProduct(c *gin.Context) {
 
 	product := models.Product{Code: create.Code, Price: create.Price}
 	models.DB.Create(&product)
-	fmt.Println(create)
 	c.JSON(http.StatusOK, gin.H{"data": product})
 }
 
@@ -64,8 +63,6 @@ func UpdateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Println(product)
-	fmt.Println(update)
 
 	updatedProduct := models.Product{Code: update.Code, Price: update.Price}
 	models.DB.Model(&product).Updates(&updatedProduct)

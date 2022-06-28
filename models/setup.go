@@ -28,7 +28,7 @@ func ConnectDB() {
 	}
 
 	// Migrate the schema
-	db.AutoMigrate(&Product{})
+	db.AutoMigrate(&Product{}, &User{})
 
 	DB = db
 }
