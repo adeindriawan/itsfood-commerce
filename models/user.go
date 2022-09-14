@@ -1,10 +1,40 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+	"time"
+	"database/sql/driver"
+)
+
+type UserCategory string
+
+const (
+	CustomerType UserCategory = "Customer"
+	VendorType UserCategory = "Vendor"
+	AdminType UserCategory = "Admin"
+)
+
+func (user *UserCategory) Scan(value interface{}) error {
+	*user = UserCategory(value.([]byte))
+	return nil
+}
+
+func (user UserCategory) Value() (driver.Value, error) {
+	return string(user), nil
+}
 
 type User struct {
 	gorm.Model
-	ID 				uint64	`json:"id"`
-	Username 	string 	`json:"username"`
-	Password	string 	`json:"password"`
+	ID uint64
+	Name string 				`gorm:"column:name;not null" json:"name"`
+	Email string				`gorm:"column:email;not null" json:"email"`
+	Password string 		`gorm:"column:password;not null" json:"password"`
+	Phone string 				`gorm:"column:phone;not null" json:"phone"`
+	Type UserCategory		`gorm:"type:ENUM('Customer', 'Vendor', 'Admin');column:type" json:"type"`
+	Status string 			`gorm:"column:status;not null" json:"status"`
+	CreatedBy string 		`gorm:"column:created_by;not null" json:"created_by"`
+	CreatedAt time.Time `gorm:"column:created_at;not null" json:"created_at"`
+	UpdatedAt time.Time	`gorm:"autoUpdateTime:false" json:"updated_at"`
+	DeletedAt time.Time `gorm:"autoUpdateTime:false" json:"deleted_at"`
+	Vendors []Vendor
 }

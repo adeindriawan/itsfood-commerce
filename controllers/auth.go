@@ -39,7 +39,7 @@ func init() {
 }
 
 type UserRegisterInput struct {
-	Username string `json:"username"`
+	Email string 		`json:"email"`
 	Password string `json:"password"`
 }
 
@@ -50,14 +50,14 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	user := models.User{Username: register.Username, Password: register.Password}
+	user := models.User{Email: register.Email, Password: register.Password}
 	models.DB.Create(&user)
 
 	c.JSON(http.StatusOK, gin.H{"message": register})
 }
 
 type UserLoginInput struct {
-	Username string `json:"username" binding:"required"`
+	Email string 		`json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -70,10 +70,10 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if err := models.DB.Where("username = ?", login.Username).First(&user).Error; err != nil {
+	if err := models.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
 		c.AbortWithStatus(401)
 		fmt.Println(err)
-	} else if user.Username != login.Username || user.Password != login.Password {
+	} else if user.Email != login.Email || user.Password != login.Password {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "failed to authenticate"})
 	} else {
 		ts, err := CreateToken(user.ID)

@@ -16,6 +16,7 @@ func main() {
     log.Fatal("Error loading .env file")
   }
 
+	r.GET("/", controllers.SimpleRequest0)
 	r.GET("/ping", controllers.SimpleRequest1)
 	r.GET("/pong", controllers.SimpleRequest2)
 
@@ -32,6 +33,7 @@ func main() {
 	r.GET("/products/:id/details", controllers.ProductDetails)
 	r.POST("/products", controllers.CreateProduct)
 	r.PATCH("/products/:id", controllers.UpdateProduct)
+	r.GET("/menus", controllers.GetMenus)
 
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)
