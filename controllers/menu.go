@@ -135,7 +135,7 @@ func GetMenus(c *gin.Context) {
 	}
 	if doesSearchParamExist {
 		search := searchParam[0]
-		query = query.Where("m.name LIKE ?", "%" + search + "%")
+		query = query.Where("m.name LIKE ?", "%" + search + "%").Or("u.name LIKE ?", "%" + search + "%")
 	}
 	if doesVendorIdParamExist {
 		vendorId, err := strconv.Atoi(vendorIdParam[0])
@@ -153,7 +153,11 @@ func GetMenus(c *gin.Context) {
 			sort = "asc"
 		}
 		orderBy := orderByParam[0]
-		query = query.Order(orderBy + " " + sort)
+		if orderBy == "random" {
+			query = query.Order("rand()")
+		} else {
+			query = query.Order(orderBy + " " + sort)
+		}
 	}
 	if doesLengthParamExist {
 		length, err := strconv.Atoi(lengthParam[0])

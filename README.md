@@ -120,31 +120,36 @@ ________________________________________________________________________________
  # {id}
 
  Query strings allowed:
-				
+```sh		
  ~ vendorId			
  ~ filters ["category", "minOrderQty", "maxOrderQty", "preOrderDays", "preOrderHours"]
  ~ price ["min", "max"]
- ~ search (name) // TODO vendor_name
+ ~ search <name, vendor_name>
  ~ length					
  ~ page
- ~ orderBy // TODO ["retailPrice", "name", "random"]
+ ~ orderBy ["retail_price", "name", "random"]
  ~ sort (asc, desc)
+ ```
 
  Response:
-
- # Status (success or failed)
- # Messages (Error messages)
- # Description (Error/Exception)
- # Result (The data being fetched)
-
+```sh
+ - Status (success or failed)
+ - Messages (Error messages)
+ - Description (Error/Exception)
+ - Result (The data being fetched)
+ ```
  * When the data is a bulk of resources
 
  Endpoints:
 
  - All menus
+```sh
 	GET - /menus
+```
 
-	Result payload: {
+	Result payload:
+```sh
+	{
 		"data": [{
 			id: (int),
 			name: (string),
@@ -162,11 +167,15 @@ ________________________________________________________________________________
 		}],
 		totalRows: <rows_count>
 	}
+```
 
  - Details of a menu
+```sh
 	GET - /menus/:id/details
+```
 
-	Result payload: 
+	Result payload:
+```sh 
 		"data": {
 			id: (int),
 			name: (string),
@@ -182,6 +191,7 @@ ________________________________________________________________________________
 			max_order_qty: (int),
 			image: (string) ---> thumbnail
 		}
+```
 
  - Random 8 products with type of food
 	GET - /products?type=food&order_by=random&number=8
