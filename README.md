@@ -117,64 +117,71 @@ ________________________________________________________________________________
 
  Parameter(s):
 
- # {product_id}
- # {product_name}
+ # {id}
 
  Query strings allowed:
-
- ~ type			~ tag_id 
- ~ supplier_id		~ search (product_name, supplier_name)
- ~ number		~ order_by (product_name, price, random)
- ~ page			~ sort (asc, desc)
- ~ per_page
- ~ min_order_qty
- ~ pre_order_days
- ~ pre_order_hours
+				
+ ~ vendorId			
+ ~ filters ["category", "minOrderQty", "maxOrderQty", "preOrderDays", "preOrderHours"]
+ ~ price ["min", "max"]
+ ~ search (name) // TODO vendor_name
+ ~ length					
+ ~ page
+ ~ orderBy // TODO ["retailPrice", "name", "random"]
+ ~ sort (asc, desc)
 
  Response:
 
  # Status (success or failed)
- # Message (Short message from application)
+ # Messages (Error messages)
  # Description (Error/Exception)
- # Data (The data being fetched)
- # totalLength* (Length of the total data)
- # filteredLength* (length of the filtered data)
+ # Result (The data being fetched)
 
  * When the data is a bulk of resources
 
  Endpoints:
 
- - All products
-	GET - /products
+ - All menus
+	GET - /menus
 
-	Response payload: {[
-		product_id: (string),
-		product_name: (string),
-		product_price: (string),
-		product_cogs: (string),
-		pre_order_days: (string),
-		pre_order_hours: (string),
-		min_order_quantity: (string),
-		supplier_id: (string)
-		supplier_name: (string)
-		product_image_url: (string) ---> thumbnail
-	]}
+	Result payload: {
+		"data": [{
+			id: (int),
+			name: (string),
+			description: (string),
+			vendor_id: (int),
+			vendor_name: (int),
+			category: (string),
+			retail_price: (int),
+			wholesale_price: (int),
+			pre_order_hours: (int),
+			pre_order_days: (int),
+			min_order_qty: (int),
+			max_order_qty: (int),
+			image: (string) ---> thumbnail
+		}],
+		totalRows: <rows_count>
+	}
 
- - Products with type and number
-	GET - /products?type=food&number=20
+ - Details of a menu
+	GET - /menus/:id/details
 
-	Response payload: {[
-		product_id: (string),
-		product_name: (string),
-		product_price: (string),
-		product_cogs: (string),
-		pre_order_days: (string),
-		pre_order_hours: (string),
-		min_order_quantity: (string),
-		supplier_id: (string)
-		supplier_name: (string)
-		product_image_url: (string) ---> thumbnail
-	]}
+	Result payload: 
+		"data": {
+			id: (int),
+			name: (string),
+			description: (string),
+			vendor_id: (int),
+			vendor_name: (int),
+			category: (string),
+			retail_price: (int),
+			wholesale_price: (int),
+			pre_order_hours: (int),
+			pre_order_days: (int),
+			min_order_qty: (int),
+			max_order_qty: (int),
+			image: (string) ---> thumbnail
+		}
 
  - Random 8 products with type of food
 	GET - /products?type=food&order_by=random&number=8

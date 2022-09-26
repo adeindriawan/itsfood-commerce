@@ -34,6 +34,7 @@ func main() {
 	r.POST("/products", controllers.CreateProduct)
 	r.PATCH("/products/:id", controllers.UpdateProduct)
 	r.GET("/menus", controllers.GetMenus)
+	r.GET("/menus/:id/details", controllers.GetMenuDetails)
 
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)

@@ -33,11 +33,13 @@ func SimpleRequest3(c *gin.Context) {
 }
 
 func SimpleRequest4(c *gin.Context) {
-	name := c.Param("name")
-	action := c.Param("action")
-	message := name + " is " + action
+	params := c.Request.URL.Query()
+	// name := c.Param("name")
+	// action := c.Param("action")
+	// message := name + " is " + action
+	fmt.Println(params["filters[category]"])
 
-	c.String(http.StatusOK, message)
+	c.JSON(http.StatusOK, params)
 }
 
 func SimpleRequest5(c *gin.Context) {
@@ -51,7 +53,7 @@ type MenuData struct {
 	Description string				`json:"description"`
 	VendorID uint							`json:"vendor_id"`
   VendorName string					`json:"vendor_name"`
-	Type models.MenuCategory 	`json:"type"`
+	Type models.MenuCategory 	`json:"category"`
 	RetailPrice uint 					`json:"retail_price"`
 	WholesalePrice uint				`json:"wholesale_price"`
 	PreOrderDays uint 				`json:"pre_order_days"`
@@ -63,19 +65,26 @@ type MenuData struct {
 
 type MenuDataResponse struct {
 	Data []MenuData			`json:"data"`
-	RowsCount int64			`json:"rowsCount"`
-	RowsFiltered int64	`json:"rowsFiltered"`
+	TotalRows int64			`json:"totalRows"`
 }
 
 func GetMenus(c *gin.Context) {
 	var menu []MenuData
 	var messages = []string{}
 	params := c.Request.URL.Query()
-	var typeParam, doesTypeParamExist = params["type"]
+	var categoryParam, doesCategoryParamExist = params["filters[category]"]
+	var minOrderQtyParam, doesMinOrderQtyParamExist = params["filters[minOrderQty]"]
+	var maxOrderQtyParam, doesMaxOrderQtyParamExist = params["filters[maxOrderQty]"]
+	var preOrderDaysParam, doesPreOrderDaysParamExist = params["filters[preOrderDays]"]
+	var preOrderHoursParam, doesPreOrderHoursParamExist = params["filters[preOrderHours]"]
+	var priceMinParam, doesPriceMinParamExist = params["price[min]"]
+	var priceMaxParam, doesPriceMaxParamExist = params["price[max]"]
 	var lengthParam, doesLengthParamExist = params["length"]
 	var pageParam, doesPageParamExist = params["page"]
 	var searchParam, doesSearchParamExist = params["search"]
-	var sortParam, doesSortParamExist = params["sort_by"]
+	var orderByParam, doesOrderByParamExist = params["orderBy"]
+	var sortParam, doesSortParamExist = params["sort"]
+	var vendorIdParam, doesVendorIdParamExist = params["vendorId"]
 	query := models.DB.Table("menus m").
 		Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
 		m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
@@ -83,26 +92,76 @@ func GetMenus(c *gin.Context) {
 		Joins("JOIN vendors v ON v.id = m.vendor_id").
 		Joins("JOIN users u ON u.id = v.user_id").
 		Where("m.status = ?", "Activated")
-	if doesTypeParamExist {
-		menuType := typeParam[0]
-		switch menuType {
+	if doesCategoryParamExist {
+		menuCategory := categoryParam[0]
+		switch menuCategory {
 		case "Food", "Beverage", "Snack", "Fruit", "Grocery", "Others":
-			query = query.Where("m.type = ?", menuType)	
+			query = query.Where("m.type = ?", menuCategory)	
 		default:
-			messages = append(messages, "Parameter Type yang diberikan tidak sesuai dengan kategori menu yang ada.")
+			messages = append(messages, "Parameter Category yang diberikan tidak sesuai dengan kategori menu yang ada.")
+		}
+	}
+	if doesMinOrderQtyParamExist {
+		menuMinOrderQty := minOrderQtyParam[0]
+		query = query.Where("m.min_order_qty = ?", menuMinOrderQty)
+	}
+	if doesMaxOrderQtyParamExist {
+		menuMaxOrderQty := maxOrderQtyParam[0]
+		query = query.Where("m.max_order_qty = ?", menuMaxOrderQty)
+	}
+	if doesPreOrderHoursParamExist {
+		menuPreOrderHours := preOrderHoursParam[0]
+		query = query.Where("m.pre_order_hours = ?", menuPreOrderHours)
+	}
+	if doesPreOrderDaysParamExist {
+		menuPreOrderDays := preOrderDaysParam[0]
+		query = query.Where("m.pre_order_days = ?", menuPreOrderDays)
+	}
+	if doesPriceMinParamExist {
+		priceMin, err := strconv.Atoi(priceMinParam[0])
+		if err != nil {
+			messages = append(messages, "Parameter harga minimum tidak dapat dikonversi ke integer.")
+		} else {
+			query = query.Where("m.retail_price >= ?", priceMin)
+		}
+	}
+	if doesPriceMaxParamExist {
+		priceMax, err := strconv.Atoi(priceMaxParam[0])
+		if err != nil {
+			messages = append(messages, "Parameter harga maksimum tidak dapat dikonversi ke integer.")
+		} else {
+			query = query.Where("m.retail_price <= ?", priceMax)
 		}
 	}
 	if doesSearchParamExist {
 		search := searchParam[0]
 		query = query.Where("m.name LIKE ?", "%" + search + "%")
 	}
-	if doesSortParamExist {
-		sort := sortParam[0]
-		query = query.Order(sort + " asc")
+	if doesVendorIdParamExist {
+		vendorId, err := strconv.Atoi(vendorIdParam[0])
+		if err != nil {
+			messages = append(messages, "Parameter ID vendor tidak dapat dikonversi ke integer.")
+		} else {
+			query = query.Where("v.id = ?", vendorId)
+		}
+	}
+	if doesOrderByParamExist {
+		var sort string
+		if doesSortParamExist {
+			sort = sortParam[0]
+		} else {
+			sort = "asc"
+		}
+		orderBy := orderByParam[0]
+		query = query.Order(orderBy + " " + sort)
 	}
 	if doesLengthParamExist {
-		length, _ := strconv.Atoi(lengthParam[0])
-		query = query.Limit(length)
+		length, err := strconv.Atoi(lengthParam[0])
+		if err != nil {
+			messages = append(messages, "Parameter Length tidak dapat dikonversi ke integer")
+		} else {
+			query = query.Limit(length)
+		}
 	}
 	if doesPageParamExist {
 		if doesLengthParamExist {
@@ -120,21 +179,73 @@ func GetMenus(c *gin.Context) {
 	queryErr := query.Error
 
 	if queryErr != nil {
-		c.AbortWithStatus(404)
 		fmt.Println(queryErr)
+		messages = append(messages, "Ada kesalahan pada query")
+		c.JSON(404, gin.H{
+			"status": "failed",
+			"errors": messages,
+			"result": nil,
+			"description": "Gagal mengambil data menu",
+		})
 	} else {
 		menuData := &MenuDataResponse{
 			Data: menu,
-			RowsCount: rowsCount,
-			RowsFiltered: rowsCount,
+			TotalRows: rowsCount,
 		}
 
 		c.JSON(200, gin.H{
 			"status": "success",
-			"messages": messages,
+			"errors": messages,
 			"result": menuData,
-			"description": "Data menu berhasil diambil",
+			"description": "Berhasil mengambil data menu",
 		})
-		fmt.Println(rowsCount)
+	}
+}
+
+type MenuDetailsUri struct {
+	Id int `uri:"id" binding:"required"`
+}
+
+func GetMenuDetails(c *gin.Context) {
+	var messages = []string{}
+	var menu MenuData
+	var uri MenuDetailsUri
+	if err := c.ShouldBindUri(&uri); err != nil {
+		messages = append(messages, "Menu Id yang terkirim tidak valid.")
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": messages,
+			"result": nil,
+			"description": "Ada kesalahan terhadap nilai menu Id",
+		})
+	} else {
+		menuId := c.Param("id")
+		query := models.DB.Table("menus m").
+			Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
+			m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
+			m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
+			Joins("JOIN vendors v ON v.id = m.vendor_id").
+			Joins("JOIN users u ON u.id = v.user_id").
+			Where("m.status = ?", "Activated").
+			Where("m.id =?", menuId).
+			Order("m.id asc").Limit(1).Find(&menu)
+		queryErr := query.Error
+		if queryErr != nil {
+			messages = append(messages, "Ada kesalahan pada query.")
+			c.JSON(400, gin.H{
+				"status": "failed",
+				"errors": messages,
+				"result": nil,
+				"description": "Gagal mengambil data detail menu.",
+			})
+		} else {
+			c.JSON(200, gin.H{
+				"status": "success",
+				"errors": messages,
+				"result": menu,
+				"description": "Berhasil mengambil data detail menu.",
+			})
+		}
+		fmt.Println("id param exists: " + menuId)
 	}
 }
