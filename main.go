@@ -39,6 +39,7 @@ func main() {
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)
 	r.POST("/logout", controllers.TokenAuthMiddleware(), controllers.Logout)
+	r.POST("/token/refresh", controllers.Refresh)
 
 	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
 

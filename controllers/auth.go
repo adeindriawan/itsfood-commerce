@@ -131,7 +131,7 @@ func CreateToken(userId uint64) (*TokenDetails, error) {
 	}
 
 	// creating refresh token
-	os.Setenv("REFRESH_SECRET", "loremipsum")
+	// os.Setenv("REFRESH_SECRET", "loremipsum")
 	rtClaims := jwt.MapClaims{}
 	rtClaims["refresh_uuid"] = td.RefreshUuid
 	rtClaims["user_id"] = userId
@@ -339,5 +339,121 @@ func TokenAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+func Refresh(c *gin.Context) {
+	mapToken := map[string]string{}
+	if err := c.ShouldBindJSON(&mapToken); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Data yang masuk tidak dapat diproses lebih lanjut.",
+		})
+		return
+	}
+	refreshSecret := os.Getenv("REFRESH_SECRET")
+	refreshToken := mapToken["refresh_token"]
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		// Make sure that the token method conform to "SigningMethodHMAC"
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected string method: %v", token.Header["alg"])
+		}
+		return []byte(refreshSecret), nil
+	})
+	// If there is an error, the token must have expired
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Refresh token yang ada sudah kadaluarsa. Silakan login kembali.",
+		})
+		return
+	}
+	// Is the token valid?
+	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal membuat access & refresh token yang baru.",
+		})
+		return
+	}
+	// Since the token is valid, get the uuid
+	claims, ok := token.Claims.(jwt.MapClaims) // the token should conform to MapClaims
+	if ok && token.Valid {
+		refreshUuid, ok := claims["refresh_uuid"].(string) // convert the interface to string
+		if !ok {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Gagal membuat access & refresh token yang baru.",
+			})
+			return
+		}
+		userId, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Tidak bisa membuat access & refresh token yang baru karena gagal mengonversi ID user.",
+			})
+			return
+		}
+		// Delete the previous refresh token
+		deleted, delErr := DeleteAuth(refreshUuid)
+		if delErr != nil || deleted == 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status": "failed",
+				"errors": delErr.Error(),
+				"result": nil,
+				"description": "Tidak bisa membuat access & refresh token yang baru karena gagal menghapus refresh token yang lama.",
+			})
+			return
+		}
+		// Create new pairs of refresh and access token
+		ts, createErr := CreateToken(userId)
+		if createErr != nil {
+			c.JSON(http.StatusForbidden, gin.H{
+				"status": "failed",
+				"errors": createErr.Error(),
+				"result": nil,
+				"description": "Gagal membuat access & refresh token yang baru.",
+			})
+			return
+		}
+		// Save the token metadata to Redis
+		saveErr := CreateAuth(userId, ts)
+		if saveErr != nil {
+			c.JSON(http.StatusForbidden, gin.H{
+				"status": "failed",
+				"errors": saveErr.Error(),
+				"result": nil,
+				"description": "Gagal menyimpan metadata token ke Redis.",
+			})
+			return
+		}
+		tokens := map[string]string{
+			"access_token": ts.AccessToken,
+			"refresh_token": ts.RefreshToken,
+		}
+		c.JSON(http.StatusCreated, gin.H{
+			"status": "success",
+			"errors": nil,
+			"result": tokens,
+			"description": "Berhasil memperbarui access & refresh token.",
+		})
+	} else {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": "Refresh expired",
+			"result": nil,
+			"description": "Token untuk merefresh access token sudah kadaluarsa.",
+		})
 	}
 }
