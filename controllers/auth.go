@@ -90,7 +90,12 @@ func Login(c *gin.Context) {
 			"user": user,
 			"token": ts,
 		}
-		c.JSON(http.StatusOK, gin.H{"data": data})
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"errors": nil,
+			"result": data,
+			"description": "Berhasil login",
+		})
 	}
 }
 
@@ -227,7 +232,6 @@ func ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
 			UserId: userId,
 		}, nil
 	}
-	fmt.Println("not ok & token not valid")
 
 	return nil, err
 }
@@ -244,24 +248,44 @@ func FetchAuth(authD *AccessDetails) (uint64, error) {
 func CreateTodo(c *gin.Context) {
 	var td *Todo
 	if err := c.ShouldBindJSON(&td); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, "invalid json")
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat memproses data yang masuk. Invalid JSON",
+		})
 		return
 	}
 	tokenAuth, err := ExtractTokenMetadata(c.Request)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak ada token user yang sesuai. Unauthorized.",
+		})
 		return
 	}
 	userId, err := FetchAuth(tokenAuth)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengambil token user yang ada. Unauthorized.",
+		})
 		return
 	}
 	td.UserID = userId
 
 	// you can proceed to save the Todo to a database
 	// but we will just return it to the caller here
-	c.JSON(http.StatusCreated, td)
+	c.JSON(http.StatusCreated, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": td,
+		"description": "Berhasil membuat data baru.",
+	})
 }
 
 func DeleteAuth(givenUuid string) (int64, error) {
@@ -275,13 +299,45 @@ func DeleteAuth(givenUuid string) (int64, error) {
 func Logout(c *gin.Context) {
 	au, err := ExtractTokenMetadata(c.Request)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengekstrak token user.",
+		})
 		return
 	}
 	deleted, delErr := DeleteAuth(au.AccessUuid)
 	if delErr != nil || deleted == 0 {
-		c.JSON(http.StatusUnauthorized, "unauthorized")
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": "Tidak ada token user yang terhapus: " + delErr.Error(),
+			"result": nil,
+			"description": "Error dalam menghapus token user atau tidak ada token yang terhapus.",
+		})
 		return
 	}
-	c.JSON(http.StatusOK, "Successfully logged out.")
+	c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": nil,
+		"description": "Berhasil log out.",
+	})
+}
+
+func TokenAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		err := TokenValid(c.Request)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Token dari user tidak valid.",
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }

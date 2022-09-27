@@ -38,9 +38,9 @@ func main() {
 
 	r.POST("/register", controllers.Register)
 	r.POST("/login", controllers.Login)
-	r.POST("/logout", controllers.Logout)
+	r.POST("/logout", controllers.TokenAuthMiddleware(), controllers.Logout)
 
-	r.POST("/todo", controllers.CreateTodo)
+	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
 
 	log.Fatal(r.Run()) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
