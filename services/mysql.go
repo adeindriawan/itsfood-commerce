@@ -1,4 +1,4 @@
-package models
+package services
 
 import (
 	"log"
@@ -10,7 +10,7 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func InitMySQL() {
 	err := godotenv.Load()
   if err != nil {
     log.Fatal("Error loading .env file")

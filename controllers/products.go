@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/services"
 )
 
 func FindProducts(c *gin.Context) {
 	var products []models.Product
-	if err := models.DB.Find(&products).Error; err != nil {
+	if err := services.DB.Find(&products).Error; err != nil {
 		c.AbortWithStatus(404)
 		fmt.Println(err)
 	} else {
@@ -20,7 +21,7 @@ func FindProducts(c *gin.Context) {
 func ProductDetails(c *gin.Context) {
 	id := c.Params.ByName("id")
 	var product models.Product
-	if err := models.DB.Where("id = ?", id).First(&product).Error; err != nil {
+	if err := services.DB.Where("id = ?", id).First(&product).Error; err != nil {
 		c.AbortWithStatus(404)
 		fmt.Println(err)
 	} else {
@@ -41,7 +42,7 @@ func CreateProduct(c *gin.Context) {
 	}
 
 	product := models.Product{Code: create.Code, Price: create.Price}
-	models.DB.Create(&product)
+	services.DB.Create(&product)
 	c.JSON(http.StatusOK, gin.H{"data": product})
 }
 
@@ -53,7 +54,7 @@ type UpdateProductInput struct {
 func UpdateProduct(c *gin.Context) {
 	//get model if exist
 	var product models.Product
-	if err := models.DB.Where("id = ?", c.Param("id")).First(&product).Error; err != nil {
+	if err := services.DB.Where("id = ?", c.Param("id")).First(&product).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Data tidak ditemukan!"})
 		return
 	}
@@ -65,6 +66,6 @@ func UpdateProduct(c *gin.Context) {
 	}
 
 	updatedProduct := models.Product{Code: update.Code, Price: update.Price}
-	models.DB.Model(&product).Updates(&updatedProduct)
+	services.DB.Model(&product).Updates(&updatedProduct)
 	c.JSON(http.StatusOK, gin.H{"data": product})
 }

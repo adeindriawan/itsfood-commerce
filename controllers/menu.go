@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/services"
 )
 
 func SimpleRequest0(c *gin.Context) {
@@ -85,7 +86,7 @@ func GetMenus(c *gin.Context) {
 	var orderByParam, doesOrderByParamExist = params["orderBy"]
 	var sortParam, doesSortParamExist = params["sort"]
 	var vendorIdParam, doesVendorIdParamExist = params["vendorId"]
-	query := models.DB.Table("menus m").
+	query := services.DB.Table("menus m").
 		Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
 		m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
 		m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
@@ -224,7 +225,7 @@ func GetMenuDetails(c *gin.Context) {
 		})
 	} else {
 		menuId := c.Param("id")
-		query := models.DB.Table("menus m").
+		query := services.DB.Table("menus m").
 			Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
 			m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
 			m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).

@@ -3,41 +3,16 @@ package controllers
 import (
 	"os"
 	"fmt"
-	"log"
 	"time"
 	"strconv"
 	"strings"
 	"net/http"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/services"
 	jwt "github.com/golang-jwt/jwt/v4"
-	redis "github.com/go-redis/redis/v7"
 	"github.com/twinj/uuid"
 )
-
-var  client *redis.Client
-
-func init() {
-	//Initializing redis
-	err := godotenv.Load()
-  if err != nil {
-    log.Fatal("Error loading .env file")
-  }
-
-  dsn := os.Getenv("REDIS_HOST")
-  if len(dsn) == 0 {
-     dsn = "localhost:6379"
-  }
-	fmt.Println(dsn)
-  client = redis.NewClient(&redis.Options{
-     Addr: dsn, //redis port
-  })
-  _, errRedis := client.Ping().Result()
-  if errRedis != nil {
-     panic(err)
-  }
-}
 
 type UserRegisterInput struct {
 	Email string 		`json:"email"`
@@ -52,7 +27,7 @@ func Register(c *gin.Context) {
 	}
 
 	user := models.User{Email: register.Email, Password: register.Password}
-	models.DB.Create(&user)
+	services.DB.Create(&user)
 
 	c.JSON(http.StatusOK, gin.H{"message": register})
 }
@@ -71,7 +46,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	if err := models.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
+	if err := services.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
 		c.AbortWithStatus(401)
 		fmt.Println(err)
 	} else if user.Email != login.Email || user.Password != login.Password {
@@ -150,12 +125,12 @@ func CreateAuth(userId uint64, td *TokenDetails) error {
 	rt := time.Unix(td.RtExpires, 0)
 	now := time.Now()
 
-	errAccess := client.Set(td.AccessUuid, strconv.Itoa(int(userId)), at.Sub(now)).Err()
+	errAccess := services.GetRedis().Set(td.AccessUuid, strconv.Itoa(int(userId)), at.Sub(now)).Err()
 	if errAccess != nil {
 		return errAccess
 	}
 
-	errRefresh := client.Set(td.RefreshUuid, strconv.Itoa(int(userId)), rt.Sub(now)).Err()
+	errRefresh := services.GetRedis().Set(td.RefreshUuid, strconv.Itoa(int(userId)), rt.Sub(now)).Err()
 	if errRefresh != nil {
 		return errRefresh
 	}
@@ -237,7 +212,7 @@ func ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
 }
 
 func FetchAuth(authD *AccessDetails) (uint64, error) {
-	userid, err := client.Get(authD.AccessUuid).Result()
+	userid, err := services.GetRedis().Get(authD.AccessUuid).Result()
 	if err != nil {
 		return 0, err
 	}
@@ -289,7 +264,7 @@ func CreateTodo(c *gin.Context) {
 }
 
 func DeleteAuth(givenUuid string) (int64, error) {
-	deleted, err := client.Del(givenUuid).Result()
+	deleted, err := services.GetRedis().Del(givenUuid).Result()
 	if err != nil {
 		return 0, err
 	}
