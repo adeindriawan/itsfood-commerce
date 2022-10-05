@@ -255,3 +255,72 @@ func UpdateCart(c *gin.Context) {
 		"description": "Berhasil mengubah isi keranjang.",
 	})
 }
+
+func DeleteCart(c *gin.Context) {
+	var cart Cart
+	if err := c.ShouldBindJSON(&cart); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Data yang masuk tidak dapat diproses.",
+		})
+		return
+	}
+
+	user, err := AuthCheck(c)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengambil token user yang ada. Unauthorized.",
+		})
+		return
+	}
+	userId := strconv.Itoa(int(user))
+	cartContent, err := _cartContent(userId)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak ada isi keranjang belanja dari user yang bersangkutan.",
+		})
+		return
+	}
+
+	for i, v := range cartContent {
+		if v.ID == cart.ID {
+			cartContent[i] = cartContent[len(cartContent) - 1]
+		}
+	}
+
+	newCartContent := cartContent[:len(cartContent) - 1]
+	json, err := json.Marshal(newCartContent)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal mengubah data ke dalam format JSON.",
+		})
+		return
+	}
+	errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+	if errSave != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errSave.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengeluarkan menu dari keranjang belanja.",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": newCartContent,
+		"description": "Berhasil mengeluarkan menu dari keranjang belanja.",
+	})
+}
