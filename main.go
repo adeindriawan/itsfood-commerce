@@ -46,6 +46,9 @@ func main() {
 	r.POST("/token/refresh", controllers.Refresh)
 
 	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
+	r.POST("/cart", controllers.AddToCart)
+	r.GET("/cart", controllers.ViewCart)
+	r.PATCH("/cart", controllers.UpdateCart)
 
 	log.Fatal(r.Run()) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
