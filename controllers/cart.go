@@ -324,7 +324,7 @@ func DeleteCart(c *gin.Context) {
 	})
 }
 
-func Total(c *gin.Context) {
+func CartTotals(c *gin.Context) {
 	user, err := AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
@@ -372,5 +372,36 @@ func Total(c *gin.Context) {
 		"errors": nil,
 		"result": total,
 		"description": "Berhasil mengambil jumlah item di dalam keranjang belanja user.",
+	})
+}
+
+func DestroyCart(c *gin.Context) {
+	user, err := AuthCheck(c)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengambil token user yang ada. Unauthorized.",
+		})
+		return
+	}
+	userId := strconv.Itoa(int(user))
+	errDelete := services.GetRedis().Del("cart" + userId).Err()
+	if errDelete != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errDelete.Error(),
+			"result": nil,
+			"description": "Gagal menghapus data keranjang belanja user.",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": nil,
+		"description": "Berhasil menghapus data keranjang belanja user.",
 	})
 }
