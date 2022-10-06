@@ -50,6 +50,7 @@ func main() {
 	r.GET("/cart", controllers.ViewCart)
 	r.PATCH("/cart", controllers.UpdateCart)
 	r.DELETE("/cart", controllers.DeleteCart)
+	r.GET("/cart/total", controllers.Total)
 
 	log.Fatal(r.Run()) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }

@@ -14,7 +14,6 @@ type Cart struct {
 	MenuID uint64 	`json:"menu_id"`
 	Price uint64		`json:"price"`
 	COGS uint64			`json:"cogs"`
-	Subtotal uint64	`json:"subtotal"`
 	VendorID uint64	`json:"vendor_id"`
 	Qty uint64 			`json:"qty"`
 }
@@ -322,5 +321,56 @@ func DeleteCart(c *gin.Context) {
 		"errors": nil,
 		"result": newCartContent,
 		"description": "Berhasil mengeluarkan menu dari keranjang belanja.",
+	})
+}
+
+func Total(c *gin.Context) {
+	user, err := AuthCheck(c)
+	if err != nil {
+		c.JSON(401, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak dapat mengambil token user yang ada. Unauthorized.",
+		})
+		return
+	}
+	userId := strconv.Itoa(int(user))
+	cartContent, err := _cartContent(userId)
+	
+	if err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Tidak ada isi keranjang belanja dari user yang bersangkutan.",
+		})
+		return
+	}
+
+	totalQty := 0
+	totalAmount := 0
+	for _, v := range cartContent {
+		totalQty += int(v.Qty)
+		totalAmount += int(v.Price) * int(v.Qty)
+	}
+
+	type CartTotal struct {
+		Items int		`json:"items"`
+		Qty int			`json:"qty"`
+		Amount int	`json:"amount"`
+	}
+
+	var total CartTotal
+
+	total.Items = len(cartContent)
+	total.Qty = totalQty
+	total.Amount = totalAmount
+	
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": total,
+		"description": "Berhasil mengambil jumlah item di dalam keranjang belanja user.",
 	})
 }
