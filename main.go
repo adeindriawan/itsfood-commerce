@@ -37,15 +37,19 @@ func main() {
 	r.GET("/products/:id/details", controllers.ProductDetails)
 	r.POST("/products", controllers.CreateProduct)
 	r.PATCH("/products/:id", controllers.UpdateProduct)
+	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
+	
 	r.GET("/menus", controllers.GetMenus)
 	r.GET("/menus/:id/details", controllers.GetMenuDetails)
-
+	
 	r.POST("/register", controllers.Register)
+	r.POST("/admin/register", controllers.AdminRegister)
 	r.POST("/login", controllers.Login)
 	r.POST("/logout", controllers.TokenAuthMiddleware(), controllers.Logout)
 	r.POST("/token/refresh", controllers.Refresh)
+	r.POST("/password/forgot", controllers.ForgotPassword)
+	r.POST("/password/reset", controllers.ResetPassword)
 
-	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
 	r.POST("/cart", controllers.AddToCart)
 	r.GET("/cart", controllers.ViewCart)
 	r.PATCH("/cart", controllers.UpdateCart)

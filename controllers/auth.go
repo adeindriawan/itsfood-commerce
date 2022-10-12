@@ -12,7 +12,233 @@ import (
 	"github.com/adeindriawan/itsfood-commerce/services"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/twinj/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
+
+type AdminRegisterInput struct {
+	Name string				`json:"name"`
+	Email string			`json:"email"`
+	Password string 	`json:"password"`
+	Phone string 			`json:"phone"`
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+type ForgotPasswordPayload struct {
+	Email string `json:"email"`
+}
+
+func ForgotPassword(c *gin.Context) {
+	var payload ForgotPasswordPayload
+	var user models.User
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+	query := services.DB.First(&user, "email = ?", payload.Email)
+	if query.Error != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": query.Error.Error(),
+			"result": nil,
+			"description": "Gagal melakukan query.",
+		})
+		return
+	}
+
+	resetToken := uuid.NewV4().String()
+	mailTo := user.Email
+	mailSubject := "[ITS Food] Lupa Kata Sandi"
+	mailBody := resetToken
+
+	resetTokenExpires := time.Now().Add(time.Minute * 15).Unix()
+	rtx := time.Unix(resetTokenExpires, 0)
+	now := time.Now()
+	if err := services.GetRedis().Set(resetToken, mailTo, rtx.Sub(now)).Err(); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan reset token di sistem.",
+		})
+		return
+	}
+
+	if !services.SendMail(mailTo, mailSubject, mailBody) {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": nil,
+			"result": nil,
+			"description": "Gagal mengirim email.",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": user,
+		"description": "Sukses mengirim email berisi token ke alamat " + user.Email,
+	})
+}
+
+type ResetPasswordPayload struct {
+	Email string `json:"email"`
+	Token string `json:"token"`
+	Password string `json:"password"`
+	ConfirmPassword string `json:"confirm_password"`
+}
+
+func ResetPassword(c *gin.Context) {
+	var payload ResetPasswordPayload
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+
+	if payload.Password != payload.ConfirmPassword {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Gagal memvalidasi data yang masuk",
+			"result": nil,
+			"description": "Data password tidak sama dengan confirm password yang dikirim.",
+		})
+		return
+	}
+
+	if email, err := services.GetRedis().Get(payload.Token).Result(); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Token tidak ditemukan dalam sistem. Kemungkinan sudah kadaluwarsa.",
+		})
+		return
+	} else if email != payload.Email {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Email yang terkirim tidak sama dengan email yang tersimpan dalam token di Redis.",
+			"result": nil,
+			"description": "User dengan email ini tidak dapat mereset password.",
+		})
+		return
+	}
+
+	var user models.User
+	findUser := services.DB.First(&user, "email = ?", payload.Email)
+	if findUser.Error != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": findUser.Error.Error(),
+			"result": nil,
+			"description": "Gagal menemukan user dengan email tersebut dalam sistem.",
+		})
+		return
+	}
+
+	hash, errHash := HashPassword(payload.Password)
+	fmt.Println(hash)
+	if errHash != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errHash.Error(),
+			"result": nil,
+			"descripion": "Gagal membuat hash dari password yang diberikan.",
+		})
+		return
+	}
+	user.Password = hash
+	fmt.Println(hash)
+	updatePassword := services.DB.Save(&user)
+	if updatePassword.Error != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": updatePassword.Error.Error(),
+			"result": nil,
+			"description": "Gagal mengubah password dari user ini.",
+		})
+		return
+	}
+	fmt.Println(hash)
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": hash,
+		"description": "Sukses mengganti password dari user ini.",
+	})
+}
+
+func AdminRegister(c *gin.Context) {
+	var register AdminRegisterInput
+	if err := c.ShouldBindJSON(&register); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+
+	hashedPassword, errHashingPassword := HashPassword(register.Password)
+	if errHashingPassword != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errHashingPassword.Error(),
+			"result": nil,
+			"description": "Gagal membuat hash password.",
+		})
+		return
+	}
+
+	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Admin", Status: "Registered"}
+	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingUser.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan data user baru dalam database.",
+		})
+		return
+	}
+
+	userId := user.ID
+	admin := models.Admin{UserID: userId, Name: register.Name, Email: register.Email, Phone: register.Phone, Status: "Inactive"}
+	if errorCreatingAdmin := services.DB.Create(&admin).Error; errorCreatingAdmin != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingAdmin.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan data admin baru dalam database.",
+		})
+		return
+	}
+	
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": user,
+		"description": "Berhasil menambah admin baru.",
+	})
+}
 
 type UserRegisterInput struct {
 	Email string 		`json:"email"`
@@ -47,19 +273,41 @@ func Login(c *gin.Context) {
 	}
 
 	if err := services.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
-		c.AbortWithStatus(401)
-		fmt.Println(err)
-	} else if user.Email != login.Email || user.Password != login.Password {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "failed to authenticate"})
+		c.JSON(401, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal menemukan user dengan email yang dikirimkan.",
+		})
+		return
+	} else if user.Email != login.Email || !CheckPasswordHash(login.Password, user.Password) {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Gagal mengautentikasi.",
+			"result": nil,
+			"description": "Gagal mengautentikasi info login dari data yang dikirimkan.",
+		})
+		return
 	} else {
 		ts, err := CreateToken(user.ID)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, err.Error())
+			c.JSON(422, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Tidak dapat membuat token untuk proses autentikasi.",
+			})
 			return
 		}
 		saveErr := CreateAuth(user.ID, ts)
 		if saveErr != nil {
-			c.JSON(http.StatusUnprocessableEntity, err.Error())
+			c.JSON(422, gin.H{
+				"status": "failed",
+				"errors": saveErr.Error(),
+				"result": nil,
+				"description": "Gagal membuat autentikasi user.",
+			})
+			return
 		}
 		data := map[string]interface{}{
 			"user": user,
@@ -138,11 +386,6 @@ func CreateAuth(userId uint64, td *TokenDetails) error {
 	return nil
 }
 
-type Todo struct {
-	UserID uint64 `json:"user_id"`
-	Title string `json:"title"`
-}
-
 func ExtractToken(r *http.Request) string {
 	bearToken := r.Header.Get("Authorization")
 	strArr := strings.Split(bearToken, " ")
@@ -218,6 +461,11 @@ func FetchAuth(authD *AccessDetails) (uint64, error) {
 	}
 	userID, _ := strconv.ParseUint(userid, 10, 64)
 	return userID, nil
+}
+
+type Todo struct {
+	UserID uint64 `json:"user_id"`
+	Title string `json:"title"`
 }
 
 func CreateTodo(c *gin.Context) {

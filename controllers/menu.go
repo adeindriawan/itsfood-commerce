@@ -223,6 +223,7 @@ func GetMenuDetails(c *gin.Context) {
 			"result": nil,
 			"description": "Ada kesalahan terhadap nilai menu Id",
 		})
+		return
 	} else {
 		menuId := c.Param("id")
 		query := services.DB.Table("menus m").
@@ -243,6 +244,7 @@ func GetMenuDetails(c *gin.Context) {
 				"result": nil,
 				"description": "Gagal mengambil data detail menu.",
 			})
+			return
 		} else {
 			c.JSON(200, gin.H{
 				"status": "success",
@@ -251,6 +253,5 @@ func GetMenuDetails(c *gin.Context) {
 				"description": "Berhasil mengambil data detail menu.",
 			})
 		}
-		fmt.Println("id param exists: " + menuId)
 	}
 }

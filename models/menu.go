@@ -1,7 +1,6 @@
 package models
 
 import (
-	"gorm.io/gorm"
 	"database/sql/driver"
 	"time"
 )
@@ -27,7 +26,7 @@ func (menu MenuCategory) Value() (driver.Value, error) {
 }
 
 type Menu struct {
-	gorm.Model
+	ID uint64 					`gorm:"primaryKey"`
 	Name string 				`gorm:"column:name" json:"name"`
 	Description string 	`gorm:"column:description" json:"description"`
 	Type MenuCategory 	`gorm:"type:ENUM('Food', 'Beverage', 'Snack', 'Fruit', 'Grocery', 'Others');column:type" json:"type"`
@@ -46,5 +45,4 @@ type Menu struct {
 	CreatedBy string 		`gorm:"column:created_by;not null" json:"created_by"`
 	CreatedAt time.Time `gorm:"column:created_at;not null" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime:false" json:"updated_at"`
-	DeletedAt time.Time `gorm:"autoUpdateTime:false" json:"deleted_at"`
 }
