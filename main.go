@@ -44,7 +44,7 @@ func main() {
 	
 	r.POST("/register", controllers.Register)
 	r.POST("/admin/register", controllers.AdminRegister)
-	r.POST("/login", controllers.Login)
+	r.POST("/customer/login", controllers.CustomerLogin)
 	r.POST("/logout", controllers.TokenAuthMiddleware(), controllers.Logout)
 	r.POST("/token/refresh", controllers.Refresh)
 	r.POST("/password/forgot", controllers.ForgotPassword)

@@ -263,7 +263,7 @@ type UserLoginInput struct {
 	Password string `json:"password" binding:"required"`
 }
 
-func Login(c *gin.Context) {
+func CustomerLogin(c *gin.Context) {
 	var user models.User
 	var login UserLoginInput
 
@@ -289,6 +289,25 @@ func Login(c *gin.Context) {
 		})
 		return
 	} else {
+		if user.Type != "Customer" {
+			c.JSON(401, gin.H{
+				"status": "failed",
+				"errors": "Not customer",
+				"result": nil,
+				"description": "User yang bersangkutan bukan bertipe Customer.",
+			})
+			return
+		}
+		var customer models.Customer
+		if err := services.DB.Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
+			c.JSON(401, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Gagal menemukan data customer dengan ID user tersebut.",
+			})
+			return
+		}
 		ts, err := CreateToken(user.ID)
 		if err != nil {
 			c.JSON(422, gin.H{
@@ -312,6 +331,7 @@ func Login(c *gin.Context) {
 		data := map[string]interface{}{
 			"user": user,
 			"token": ts,
+			"customer": customer,
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"status": "success",
