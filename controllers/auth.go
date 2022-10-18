@@ -15,13 +15,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AdminRegisterInput struct {
-	Name string				`json:"name"`
-	Email string			`json:"email"`
-	Password string 	`json:"password"`
-	Phone string 			`json:"phone"`
-}
-
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	return string(bytes), err
@@ -186,6 +179,13 @@ func ResetPassword(c *gin.Context) {
 	})
 }
 
+type AdminRegisterInput struct {
+	Name string				`json:"name"`
+	Email string			`json:"email"`
+	Password string 	`json:"password"`
+	Phone string 			`json:"phone"`
+}
+
 func AdminRegister(c *gin.Context) {
 	var register AdminRegisterInput
 	if err := c.ShouldBindJSON(&register); err != nil {
@@ -209,7 +209,7 @@ func AdminRegister(c *gin.Context) {
 		return
 	}
 
-	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Admin", Status: "Registered"}
+	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Admin", Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -221,7 +221,7 @@ func AdminRegister(c *gin.Context) {
 	}
 
 	userId := user.ID
-	admin := models.Admin{UserID: userId, Name: register.Name, Email: register.Email, Phone: register.Phone, Status: "Inactive"}
+	admin := models.Admin{UserID: userId, Name: register.Name, Email: register.Email, Phone: register.Phone, Status: "Inactive", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingAdmin := services.DB.Create(&admin).Error; errorCreatingAdmin != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -237,6 +237,150 @@ func AdminRegister(c *gin.Context) {
 		"errors": nil,
 		"result": user,
 		"description": "Berhasil menambah admin baru.",
+	})
+}
+
+type CustomerRegisterInput struct {
+	Name string			`json:"name"`
+	Email string		`json:"email"`
+	Password string `json:"password"`
+	Phone string 		`json:"phone"`
+	Type string 		`json:"type"`
+	UnitID uint64 	`json:"unit_id"`
+}
+
+func CustomerRegister(c *gin.Context) {
+	var register CustomerRegisterInput
+	if err := c.ShouldBindJSON(&register); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk",
+		})
+		return
+	}
+
+	hashedPassword, errorHashingPassword := HashPassword(register.Password)
+	if errorHashingPassword != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorHashingPassword.Error(),
+			"result": nil,
+			"description": "Gagal membuat hash password.",
+		})
+		return
+	}
+
+	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Customer", Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
+	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingUser.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan data user baru dalam database.",
+		})
+		return
+	}
+
+	userId := user.ID
+	customer := models.Customer{UserID: userId, Type: register.Type, UnitID: register.UnitID, Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
+	if errorCreatingCustomer := services.DB.Create(&customer).Error; errorCreatingCustomer != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingCustomer.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan data customer baru dalam database.",
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": nil,
+		"description": "Berhasil mendaftarkan customer baru ke dalam sistem.",
+	})
+}
+
+type VendorRegisterInput struct {
+	Name string 							`json:"name"`
+	Email string 							`json:"email"`
+	Password string						`json:"password"`
+	Phone string 							`json:"phone"`
+	CompanyName string				`json:"company_name"`
+	CompanyType string 				`json:"company_type"`
+	Address string 						`json:"address"`
+	BankName string 					`json:"bank_name"`
+	BankBranch string 				`json:"bank_branch"`
+	BankAccountNumber	string	`json:"bank_account_number"`
+	BankAccountName string 		`json:"bank_account_name"`
+}
+
+func VendorRegister(c *gin.Context) {
+	var register VendorRegisterInput
+	if err := c.ShouldBindJSON(&register); err != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+
+	hashedPassword, errorHashingPassword := HashPassword(register.Password)
+	if errorHashingPassword != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorHashingPassword.Error(),
+			"result": nil,
+			"description": "Gagal membuat hash password.",
+		})
+		return
+	}
+
+	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Status: "Registered", Type: "Vendor", CreatedBy: register.Name, CreatedAt: time.Time{}}
+	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingUser.Error(),
+			"result": nil,
+			"description": "Gagal mennyimpan data user baru.",
+		})
+		return
+	}
+
+	userId := user.ID
+	vendor := models.Vendor{
+		UserID: userId,
+		CompanyName: register.CompanyName, 
+		CompanyType: register.CompanyType,
+		Address: register.Address,
+		BankName: register.BankName,
+		BankBranch: register.BankBranch,
+		BankAccountNumber: register.BankAccountNumber,
+		BankAccountName: register.BankAccountName,
+	}
+	if errorCreatingVendor := services.DB.Create(&vendor).Error; errorCreatingVendor != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingVendor.Error(),
+			"result": nil,
+			"description": "Gagal menyimpan data vendor baru.",
+		})
+		return
+	}
+	data := map[string]interface{}{
+		"user": user,
+		"vendor": vendor,
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": data,
+		"description": "Berhasil mendaftarkan vendor baru.",
 	})
 }
 

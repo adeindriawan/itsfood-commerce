@@ -1,13 +1,11 @@
 package models
 
 import (
-	"gorm.io/gorm"
 	"time"
 )
 
 type Vendor struct {
-	gorm.Model
-	Name string								`gorm:"column:name;not null" json:"name"`
+	ID uint64									`gorm:"primaryKey"`
 	CompanyName string				`gorm:"column:company_name" json:"company_name"`
 	CompanyType string				`gorm:"column:company_type" json:"company_type"`
 	Phone string							`gorm:"column:phone" json:"phone"`
@@ -35,15 +33,12 @@ type Vendor struct {
 	VendorMinOrderQty uint		`gorm:"column:vendor_min_order_qty;default:1" json:"vendor_min_order_qty"`
 	VendorDeliveryCost uint 	`gorm:"column:vendor_delivery_cost;default:0" json:"vendor_delivery_cost"`
 	VendorServiceCharge uint 	`gorm:"column:vendor_service_charge;default:0" json:"vendor_service_charge"`
-	VendorMargin float64			`gorm:"column:vendor_margin;not null" json:"vendor_margin"`
+	VendorMargin float64			`gorm:"column:vendor_margin;not null;default:10" json:"vendor_margin"`
 	VendorNoteForMenus string	`gorm:"column:vendor_note_for_menus" json:"vendor_note_for_menus"`
 	VendorTelegramID string 	`gorm:"column:vendor_telegram_id" json:"vendor_telegram_id"`
 	Status string 						`gorm:"column:status;not null" json:"status"`
 	UserID uint64 						`gorm:"column:user_id;not null" json:"user_id"`
-	User User
 	CreatedBy string 					`gorm:"column:created_by;not null" json:"created_by"`
 	CreatedAt time.Time 			`gorm:"column:created_at" json:"created_at"`
-	UpdatedAt time.Time				`gorm:"column:updated_at;autoUpdateTime:false" json:"updated_at"`
-	DeletedAt time.Time				`gorm:"column:deleted_at;autoUpdateTime:false" json:"deleted_at"`
-	Menus []Menu							
+	UpdatedAt time.Time				`gorm:"column:updated_at;autoUpdateTime:false" json:"updated_at"`			
 }
