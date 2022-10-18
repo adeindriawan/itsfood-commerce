@@ -21,22 +21,10 @@ func main() {
     log.Fatal("Error loading .env file")
   }
 
-	r.GET("/", controllers.SimpleRequest0)
-	r.GET("/ping", controllers.SimpleRequest1)
-	r.GET("/pong", controllers.SimpleRequest2)
-
-	// This handler will match /user/john but will not match /user/ or /user
-	r.GET("/user/:name", controllers.SimpleRequest3)
-	
-	// However, this one will match /user/john/ and also /user/john/send
-	// If no other routers match /user/john, it will redirect to /user/john/
-	r.GET("/user/:name/*action", controllers.SimpleRequest4)
-	r.POST("/user/:name/*action", controllers.SimpleRequest5)
-
-	r.GET("/products", controllers.FindProducts)
-	r.GET("/products/:id/details", controllers.ProductDetails)
-	r.POST("/products", controllers.CreateProduct)
-	r.PATCH("/products/:id", controllers.UpdateProduct)
+	r.GET("/", func(c *gin.Context) {
+		response := "This is ITSFood API Homepage. For full documentation, please visit this <a href='https://documenter.getpostman.com/view/2734100/2s83zdvRWQ' target='_blank'>link</a>"
+		c.Data(200, "text/html; charset: utf-8", []byte(response))
+	})
 	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
 	
 	r.GET("/menus", controllers.GetMenus)
