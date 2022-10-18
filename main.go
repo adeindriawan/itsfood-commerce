@@ -26,6 +26,8 @@ func main() {
 		c.Data(200, "text/html; charset: utf-8", []byte(response))
 	})
 	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
+
+	r.POST("/orders", controllers.CreateOrder)
 	
 	r.GET("/menus", controllers.GetMenus)
 	r.GET("/menus/:id/details", controllers.GetMenuDetails)
