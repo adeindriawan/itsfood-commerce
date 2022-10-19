@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/twinj/uuid"
+	"github.com/adeindriawan/itsfood-commerce/utils"
 )
 
 type Cart struct {
@@ -16,19 +17,6 @@ type Cart struct {
 	COGS uint64			`json:"cogs"`
 	VendorID uint64	`json:"vendor_id"`
 	Qty uint64 			`json:"qty"`
-}
-
-func AuthCheck(c *gin.Context) (uint64, error) {
-	tokenAuth, err := ExtractTokenMetadata(c.Request)
-	if err != nil {
-		return 0, err
-	}
-	userId, err := FetchAuth(tokenAuth)
-	if err != nil {
-		return 0, err
-	}
-
-	return userId, nil
 }
 
 func _cartContent(userId string) ([]Cart, error) {
@@ -67,7 +55,7 @@ func AddToCart(c *gin.Context) {
 		return
 	}
 
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -160,7 +148,7 @@ func AddToCart(c *gin.Context) {
 }
 
 func ViewCart(c *gin.Context) {
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -201,7 +189,7 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -267,7 +255,7 @@ func DeleteCart(c *gin.Context) {
 		return
 	}
 
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -325,7 +313,7 @@ func DeleteCart(c *gin.Context) {
 }
 
 func CartTotals(c *gin.Context) {
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -376,7 +364,7 @@ func CartTotals(c *gin.Context) {
 }
 
 func DestroyCart(c *gin.Context) {
-	user, err := AuthCheck(c)
+	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",

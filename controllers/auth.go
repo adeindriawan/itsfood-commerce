@@ -5,25 +5,14 @@ import (
 	"fmt"
 	"time"
 	"strconv"
-	"strings"
 	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/models"
 	"github.com/adeindriawan/itsfood-commerce/services"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/twinj/uuid"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/adeindriawan/itsfood-commerce/utils"
 )
-
-func HashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
-	return string(bytes), err
-}
-
-func CheckPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
 
 type ForgotPasswordPayload struct {
 	Email string `json:"email"`
@@ -147,7 +136,7 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	hash, errHash := HashPassword(payload.Password)
+	hash, errHash := utils.HashPassword(payload.Password)
 	fmt.Println(hash)
 	if errHash != nil {
 		c.JSON(400, gin.H{
@@ -198,7 +187,7 @@ func AdminRegister(c *gin.Context) {
 		return
 	}
 
-	hashedPassword, errHashingPassword := HashPassword(register.Password)
+	hashedPassword, errHashingPassword := utils.HashPassword(register.Password)
 	if errHashingPassword != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -261,7 +250,7 @@ func CustomerRegister(c *gin.Context) {
 		return
 	}
 
-	hashedPassword, errorHashingPassword := HashPassword(register.Password)
+	hashedPassword, errorHashingPassword := utils.HashPassword(register.Password)
 	if errorHashingPassword != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -329,7 +318,7 @@ func VendorRegister(c *gin.Context) {
 		return
 	}
 
-	hashedPassword, errorHashingPassword := HashPassword(register.Password)
+	hashedPassword, errorHashingPassword := utils.HashPassword(register.Password)
 	if errorHashingPassword != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -424,7 +413,7 @@ func CustomerLogin(c *gin.Context) {
 			"description": "Gagal menemukan user dengan email yang dikirimkan.",
 		})
 		return
-	} else if user.Email != login.Email || !CheckPasswordHash(login.Password, user.Password) {
+	} else if user.Email != login.Email || !utils.CheckPasswordHash(login.Password, user.Password) {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": "Gagal mengautentikasi.",
@@ -452,7 +441,7 @@ func CustomerLogin(c *gin.Context) {
 			})
 			return
 		}
-		ts, err := CreateToken(user.ID)
+		ts, err := utils.CreateToken(user.ID)
 		if err != nil {
 			c.JSON(422, gin.H{
 				"status": "failed",
@@ -462,7 +451,7 @@ func CustomerLogin(c *gin.Context) {
 			})
 			return
 		}
-		saveErr := CreateAuth(user.ID, ts)
+		saveErr := utils.CreateAuth(user.ID, ts)
 		if saveErr != nil {
 			c.JSON(422, gin.H{
 				"status": "failed",
@@ -486,147 +475,6 @@ func CustomerLogin(c *gin.Context) {
 	}
 }
 
-type TokenDetails struct {
-  AccessToken  string
-  RefreshToken string
-  AccessUuid   string
-  RefreshUuid  string
-  AtExpires    int64
-  RtExpires    int64
-}
-
-func CreateToken(userId uint64) (*TokenDetails, error) {
-	td := &TokenDetails{}
-  td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
-  td.AccessUuid = uuid.NewV4().String()
-
-  td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix()
-  td.RefreshUuid = uuid.NewV4().String()
-
-	var err error
-	// creating access token
-	os.Setenv("ACCESS_SECRET", "loremipsum")
-	atClaims := jwt.MapClaims{}
-	atClaims["authorized"] = true
-	atClaims["access_uuid"] = td.AccessUuid
-	atClaims["user_id"] = userId
-	atClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
-	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
-	td.AccessToken, err = at.SignedString([]byte(os.Getenv("ACCESS_SECRET")))
-	if err != nil {
-		return nil, err
-	}
-
-	// creating refresh token
-	// os.Setenv("REFRESH_SECRET", "loremipsum")
-	rtClaims := jwt.MapClaims{}
-	rtClaims["refresh_uuid"] = td.RefreshUuid
-	rtClaims["user_id"] = userId
-	rtClaims["exp"] = td.RtExpires
-	rt := jwt.NewWithClaims(jwt.SigningMethodHS256, rtClaims)
-	td.RefreshToken, err = rt.SignedString([]byte(os.Getenv("REFRESH_SECRET")))
-	if err != nil {
-		return nil, err
-	}
-
-	return td, nil
-}
-
-func CreateAuth(userId uint64, td *TokenDetails) error {
-	at := time.Unix(td.AtExpires, 0) // converting Unix to UTC (to Time object)
-	rt := time.Unix(td.RtExpires, 0)
-	now := time.Now()
-
-	errAccess := services.GetRedis().Set(td.AccessUuid, strconv.Itoa(int(userId)), at.Sub(now)).Err()
-	if errAccess != nil {
-		return errAccess
-	}
-
-	errRefresh := services.GetRedis().Set(td.RefreshUuid, strconv.Itoa(int(userId)), rt.Sub(now)).Err()
-	if errRefresh != nil {
-		return errRefresh
-	}
-
-	return nil
-}
-
-func ExtractToken(r *http.Request) string {
-	bearToken := r.Header.Get("Authorization")
-	strArr := strings.Split(bearToken, " ")
-	if len(strArr) == 2 {
-		return strArr[1]
-	}
-
-	return ""
-}
-
-func VerifyToken(r *http.Request) (*jwt.Token, error) {
-	tokenString := ExtractToken(r)
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// make sure that the token method conform to "SigningMethodHMAC"
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(os.Getenv("ACCESS_SECRET")), nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return token, nil
-}
-
-func TokenValid(r *http.Request) error {
-	token, err := VerifyToken(r)
-	if err != nil {
-		return err
-	}
-	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		return err
-	}
-
-	return nil
-}
-
-type AccessDetails struct {
-	AccessUuid string
-	UserId uint64
-}
-
-func ExtractTokenMetadata(r *http.Request) (*AccessDetails, error) {
-	token, err := VerifyToken(r)
-	if err != nil {
-		return nil, err
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if ok && token.Valid {
-		accessUuid, ok := claims["access_uuid"].(string)
-		if !ok {
-			return nil, err
-		}
-		userId, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-
-		return &AccessDetails{
-			AccessUuid: accessUuid,
-			UserId: userId,
-		}, nil
-	}
-
-	return nil, err
-}
-
-func FetchAuth(authD *AccessDetails) (uint64, error) {
-	userid, err := services.GetRedis().Get(authD.AccessUuid).Result()
-	if err != nil {
-		return 0, err
-	}
-	userID, _ := strconv.ParseUint(userid, 10, 64)
-	return userID, nil
-}
-
 type Todo struct {
 	UserID uint64 `json:"user_id"`
 	Title string `json:"title"`
@@ -643,7 +491,7 @@ func CreateTodo(c *gin.Context) {
 		})
 		return
 	}
-	tokenAuth, err := ExtractTokenMetadata(c.Request)
+	tokenAuth, err := utils.ExtractTokenMetadata(c.Request)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "failed",
@@ -653,7 +501,7 @@ func CreateTodo(c *gin.Context) {
 		})
 		return
 	}
-	userId, err := FetchAuth(tokenAuth)
+	userId, err := utils.FetchAuth(tokenAuth)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "failed",
@@ -684,7 +532,7 @@ func DeleteAuth(givenUuid string) (int64, error) {
 }
 
 func Logout(c *gin.Context) {
-	au, err := ExtractTokenMetadata(c.Request)
+	au, err := utils.ExtractTokenMetadata(c.Request)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "failed",
@@ -710,23 +558,6 @@ func Logout(c *gin.Context) {
 		"result": nil,
 		"description": "Berhasil log out.",
 	})
-}
-
-func TokenAuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		err := TokenValid(c.Request)
-		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"status": "failed",
-				"errors": err.Error(),
-				"result": nil,
-				"description": "Token dari user tidak valid.",
-			})
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
 }
 
 func Refresh(c *gin.Context) {
@@ -804,7 +635,7 @@ func Refresh(c *gin.Context) {
 			return
 		}
 		// Create new pairs of refresh and access token
-		ts, createErr := CreateToken(userId)
+		ts, createErr := utils.CreateToken(userId)
 		if createErr != nil {
 			c.JSON(http.StatusForbidden, gin.H{
 				"status": "failed",
@@ -815,7 +646,7 @@ func Refresh(c *gin.Context) {
 			return
 		}
 		// Save the token metadata to Redis
-		saveErr := CreateAuth(userId, ts)
+		saveErr := utils.CreateAuth(userId, ts)
 		if saveErr != nil {
 			c.JSON(http.StatusForbidden, gin.H{
 				"status": "failed",
