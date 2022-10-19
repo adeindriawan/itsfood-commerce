@@ -23,7 +23,7 @@ func (user UserCategory) Value() (driver.Value, error) {
 }
 
 type User struct {
-	ID uint64						`gorm:"primaryKey"`
+	ID uint64						`gorm:"primaryKey" json:"id"`
 	Name string 				`gorm:"column:name;not null" json:"name"`
 	Email string				`gorm:"column:email;not null" json:"email"`
 	Password string	 		`gorm:"column:password;not null" json:"password"`

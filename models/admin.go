@@ -22,8 +22,9 @@ func (admin AdminStatus) Value() (driver.Value, error) {
 }
 
 type Admin struct {
-	ID uint64						`gorm:"primaryKey"`
+	ID uint64						`gorm:"primaryKey" json:"id"`
 	UserID uint64				`gorm:"column:user_id;not null"`
+	User User						`json:"user"`
 	Name string 				`json:"name" gorm:"column:name;not null"`
 	Email string				`json:"email" gorm:"column:email;not null"`
 	Phone string 				`json:"phone" gorm:"column:phone;not null"`

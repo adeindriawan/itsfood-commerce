@@ -5,7 +5,7 @@ import (
 )
 
 type Vendor struct {
-	ID uint64									`gorm:"primaryKey"`
+	ID uint64									`gorm:"primaryKey" json:"id"`
 	CompanyName string				`gorm:"column:company_name" json:"company_name"`
 	CompanyType string				`gorm:"column:company_type" json:"company_type"`
 	Phone string							`gorm:"column:phone" json:"phone"`
@@ -38,6 +38,7 @@ type Vendor struct {
 	VendorTelegramID string 	`gorm:"column:vendor_telegram_id" json:"vendor_telegram_id"`
 	Status string 						`gorm:"column:status;not null" json:"status"`
 	UserID uint64 						`gorm:"column:user_id;not null" json:"user_id"`
+	User User									`json:"user"`
 	CreatedBy string 					`gorm:"column:created_by;not null" json:"created_by"`
 	CreatedAt time.Time 			`gorm:"column:created_at" json:"created_at"`
 	UpdatedAt time.Time				`gorm:"column:updated_at;autoUpdateTime:false" json:"updated_at"`			

@@ -2,8 +2,9 @@ package main
 
 import (
 	"log"
-
+	"time"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
 	"github.com/joho/godotenv"
 	"github.com/adeindriawan/itsfood-commerce/controllers"
 	"github.com/adeindriawan/itsfood-commerce/services"
@@ -21,6 +22,18 @@ func main() {
     log.Fatal("Error loading .env file")
   }
 
+	r.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{"https://itsfood-commerce.surge.sh"},
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
+			AllowHeaders:     []string{"Origin"},
+			ExposeHeaders:    []string{"Content-Length"},
+			AllowCredentials: true,
+			AllowOriginFunc: func(origin string) bool {
+					return origin == "https://github.com"
+			},
+			MaxAge: 12 * time.Hour,
+	}))
+
 	r.GET("/", func(c *gin.Context) {
 		response := "This is ITSFood API Homepage. For full documentation, please visit this <a href='https://documenter.getpostman.com/view/2734100/2s83zdvRWQ' target='_blank'>link</a>"
 		c.Data(200, "text/html; charset: utf-8", []byte(response))
@@ -28,6 +41,7 @@ func main() {
 	r.POST("/todo", controllers.TokenAuthMiddleware(), controllers.CreateTodo)
 
 	r.POST("/orders", controllers.CreateOrder)
+	r.GET("/orders/:id/details", controllers.OrderDetails)
 	
 	r.GET("/menus", controllers.GetMenus)
 	r.GET("/menus/:id/details", controllers.GetMenuDetails)
