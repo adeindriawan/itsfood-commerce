@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -24,11 +23,6 @@ func SendTelegramToGroup(text string) (bool, error) {
 	// Global variables
 	var err error
 	var response *http.Response
-
-	errorLoadingEnv := godotenv.Load()
-  if errorLoadingEnv != nil {
-    log.Fatal("Error loading .env file")
-  }
 
 	ChatId = os.Getenv("TELEGRAM_CHAT_ID")
 	Token = os.Getenv("TELEGRAM_BOT_TOKEN")
@@ -69,11 +63,6 @@ func SendTelegramToVendor(text string, chatId string) (bool, error) {
 	// Global variables
 	var err error
 	var response *http.Response
-
-	errorLoadingEnv := godotenv.Load()
-  if errorLoadingEnv != nil {
-    log.Fatal("Error loading .env file")
-  }
 
 	ChatId = chatId
 	Token = os.Getenv("TELEGRAM_BOT_TOKEN")

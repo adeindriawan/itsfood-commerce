@@ -2,38 +2,22 @@ package main
 
 import (
 	"log"
-	"time"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-contrib/cors"
-	"github.com/joho/godotenv"
 	"github.com/adeindriawan/itsfood-commerce/controllers"
 	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/adeindriawan/itsfood-commerce/middlewares"
+	"github.com/adeindriawan/itsfood-commerce/utils"
 )
 
 func init() {
+	utils.LoadEnvVars()
 	services.InitRedis()
 	services.InitMySQL()
 }
 
 func main() {
 	r := gin.Default()
-	err := godotenv.Load()
-  if err != nil {
-    log.Fatal("Error loading .env file")
-  }
-
-	r.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{"https://itsfood-commerce.surge.sh"},
-			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE"},
-			AllowHeaders:     []string{"Origin"},
-			ExposeHeaders:    []string{"Content-Length"},
-			AllowCredentials: true,
-			AllowOriginFunc: func(origin string) bool {
-					return origin == "https://github.com"
-			},
-			MaxAge: 12 * time.Hour,
-	}))
+	r.Use(utils.UseCORS())
 
 	r.GET("/", func(c *gin.Context) {
 		response := "This is ITSFood API Homepage. For full documentation, please visit this <a href='https://documenter.getpostman.com/view/2734100/2s83zdvRWQ' target='_blank'>link</a>"
@@ -64,5 +48,5 @@ func main() {
 	r.GET("/cart/total", controllers.CartTotals)
 	r.DELETE("/cart/destroy", controllers.DestroyCart)
 
-	log.Fatal(r.Run()) // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	log.Fatal(r.Run())
 }

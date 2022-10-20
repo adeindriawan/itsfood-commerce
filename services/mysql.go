@@ -1,9 +1,9 @@
 package services
 
 import (
-	"log"
+	// "log"
 	"os"
-	"github.com/joho/godotenv"
+	// "github.com/joho/godotenv"
 	"gorm.io/gorm"
 	"gorm.io/driver/mysql"
 )
@@ -11,11 +11,6 @@ import (
 var DB *gorm.DB
 
 func InitMySQL() {
-	err := godotenv.Load()
-  if err != nil {
-    log.Fatal("Error loading .env file")
-  }
-
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASS")
 	dbName := os.Getenv("DB_NAME")

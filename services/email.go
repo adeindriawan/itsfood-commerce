@@ -2,7 +2,6 @@ package services
 
 import (
 	"gopkg.in/gomail.v2"
-	"github.com/joho/godotenv"
 	"os"
 	"log"
 	"strconv"
@@ -10,11 +9,6 @@ import (
 )
 
 func SendMail(mailTo string, mailSubject string, mailBody string) bool {
-	err := godotenv.Load()
-  if err != nil {
-    log.Fatal("Error loading .env file")
-  }
-
 	host := os.Getenv("SMTP_HOST")
 	portVar := os.Getenv("SMTP_PORT")
 	port, _ := strconv.Atoi(portVar)
