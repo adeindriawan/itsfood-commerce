@@ -19,7 +19,7 @@ func TokenValid(r *http.Request) error {
 	return nil
 }
 
-func Auth() gin.HandlerFunc {
+func Authorized() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		err := TokenValid(c.Request)
 		if err != nil {

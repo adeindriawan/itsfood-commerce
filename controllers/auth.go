@@ -479,6 +479,89 @@ func CustomerLogin(c *gin.Context) {
 	}
 }
 
+func AdminLogin(c *gin.Context) {
+	var user models.User
+	var login UserLoginInput
+
+	if err := c.ShouldBindJSON(&login); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+
+	if err := services.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
+		c.JSON(401, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal menemukan user dengan email yang dikirimkan.",
+		})
+		return
+	} else if user.Email != login.Email || !utils.CheckPasswordHash(login.Password, user.Password) {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Gagal mengautentikasi.",
+			"result": nil,
+			"description": "Gagal mengautentikasi info login dari data yang dikirimkan.",
+		})
+		return
+	} else {
+		if user.Type != "Admin" {
+			c.JSON(401, gin.H{
+				"status": "failed",
+				"errors": "Not admin",
+				"result": nil,
+				"description": "User yang bersangkutan bukan bertipe Admin.",
+			})
+			return
+		}
+		var admin models.Admin
+		if err := services.DB.Preload("User").Where("user_id = ?", user.ID).First(&admin).Error; err != nil {
+			c.JSON(401, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Gagal menemukan data admin dengan ID user tersebut.",
+			})
+			return
+		}
+		ts, err := utils.CreateToken(user.ID)
+		if err != nil {
+			c.JSON(422, gin.H{
+				"status": "failed",
+				"errors": err.Error(),
+				"result": nil,
+				"description": "Tidak dapat membuat token untuk proses autentikasi.",
+			})
+			return
+		}
+		saveErr := utils.CreateAuth(user.ID, ts)
+		if saveErr != nil {
+			c.JSON(422, gin.H{
+				"status": "failed",
+				"errors": saveErr.Error(),
+				"result": nil,
+				"description": "Gagal membuat autentikasi user.",
+			})
+			return
+		}
+		data := map[string]interface{}{
+			"token": ts,
+			"admin": admin,
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "success",
+			"errors": nil,
+			"result": data,
+			"description": "Berhasil login",
+		})
+	}
+}
+
 type Todo struct {
 	UserID uint64 `json:"user_id"`
 	Title string `json:"title"`
