@@ -401,7 +401,12 @@ func CustomerLogin(c *gin.Context) {
 	var login UserLoginInput
 
 	if err := c.ShouldBindJSON(&login); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
 		return
 	}
 
@@ -432,7 +437,7 @@ func CustomerLogin(c *gin.Context) {
 			return
 		}
 		var customer models.Customer
-		if err := services.DB.Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
+		if err := services.DB.Preload("User").Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
 			c.JSON(401, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
@@ -462,7 +467,6 @@ func CustomerLogin(c *gin.Context) {
 			return
 		}
 		data := map[string]interface{}{
-			"user": user,
 			"token": ts,
 			"customer": customer,
 		}
