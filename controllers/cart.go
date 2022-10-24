@@ -11,15 +11,18 @@ import (
 )
 
 type Cart struct {
-	ID string 			`json:"id"`
-	MenuID uint64 	`json:"menu_id"`
-	Price uint64		`json:"price"`
-	COGS uint64			`json:"cogs"`
-	VendorID uint64	`json:"vendor_id"`
-	Qty uint64 			`json:"qty"`
+	ID string 				`json:"id"`
+	MenuID uint64 		`json:"menu_id"`
+	Name string				`json:"name"`
+	Price uint64			`json:"price"`
+	COGS uint64				`json:"cogs"`
+	VendorID uint64		`json:"vendor_id"`
+	Qty uint 					`json:"qty"`
+	Image string			`json:"image"`
+	MinOrderQty uint	`json:"min_order_qty"`
 }
 
-func _cartContent(userId string) ([]Cart, error) {
+func _userCartContent(userId string) ([]Cart, error) {
 	var content []Cart
 	cart, err := services.GetRedis().Get("cart" + userId).Result()
 	if err != nil {
@@ -32,7 +35,7 @@ func _cartContent(userId string) ([]Cart, error) {
 	return content, nil
 }
 
-func _menuExistsAndChangeQty(menuId uint64, qty uint64, cartContent []Cart) (bool, []Cart) {
+func _menuExistsAndChangeQty(menuId uint64, qty uint, cartContent []Cart) (bool, []Cart) {
 	for i, search := range cartContent {
 		if search.MenuID == menuId {
 			cartContent[i].Qty += qty
@@ -40,6 +43,10 @@ func _menuExistsAndChangeQty(menuId uint64, qty uint64, cartContent []Cart) (boo
 		}
 	}
 	return false, nil
+}
+
+func _menuMinOrderQtyValidated(menuQty uint, menuMinOrderQty uint) bool {
+	return menuQty >= menuMinOrderQty
 }
 
 func AddToCart(c *gin.Context) {
@@ -65,9 +72,21 @@ func AddToCart(c *gin.Context) {
 		})
 		return
 	}
+
+	if !_menuMinOrderQtyValidated(cart.Qty, cart.MinOrderQty) {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Menu min order qty failed to be validated.",
+			"result": nil,
+			"description": "Qty menu yang dimasukkan tidak sesuai dengan minimum order qty menu tersebut.",
+		})
+
+		return
+	}
+
 	userId := strconv.Itoa(int(user))
-	currentCartContent, noCurrentCartContent := _cartContent(userId)
-	if noCurrentCartContent != nil {
+	currentCartContent, noCurrentCartContent := _userCartContent(userId) // apa sudah ada cart dari user ini?
+	if noCurrentCartContent != nil { // jika belum, maka buat cart baru untuk user ini
 		cart.ID = uuid.NewV4().String()
 		cartContent = append(cartContent, cart)
 		json, err := json.Marshal(cartContent)
@@ -159,7 +178,7 @@ func ViewCart(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cart, err := _cartContent(userId)
+	cart, err := _userCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -189,6 +208,7 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
+
 	user, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
@@ -199,8 +219,9 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
+
 	userId := strconv.Itoa(int(user))
-	cartContent, err := _cartContent(userId)
+	cartContent, err := _userCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -211,8 +232,19 @@ func UpdateCart(c *gin.Context) {
 		return
 	}
 	for i, search := range cartContent {
-		if search.ID == cart.ID {
-			cartContent[i].Qty = cart.Qty
+		if cart.ID == search.ID {
+			if !_menuMinOrderQtyValidated(cart.Qty, search.MinOrderQty) {
+				c.JSON(400, gin.H{
+					"status": "failed",
+					"errors": "Menu min order qty failed to be validated.",
+					"result": nil,
+					"description": "Qty menu yang dimasukkan tidak sesuai dengan minimum order qty menu tersebut.",
+				})
+		
+				return
+			} else {
+				cartContent[i].Qty = cart.Qty
+			}
 		}
 	}
 	json, err := json.Marshal(cartContent)
@@ -266,7 +298,7 @@ func DeleteCart(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cartContent, err := _cartContent(userId)
+	cartContent, err := _userCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -324,7 +356,7 @@ func CartTotals(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cartContent, err := _cartContent(userId)
+	cartContent, err := _userCartContent(userId)
 	
 	if err != nil {
 		c.JSON(400, gin.H{

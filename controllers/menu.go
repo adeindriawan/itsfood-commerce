@@ -23,6 +23,10 @@ type MenuData struct {
 	MinOrderQty uint 					`json:"min_order_qty"`
 	MaxOrderQty uint 					`json:"max_order_qty"`
 	Image string 							`json:"image"`
+	VendorNoteForMenus string	`json:"vendor_note_for_menus"`
+	VendorDeliveryCost uint		`json:"vendor_delivery_cost"`
+	VendorServiceCharge uint	`json:"vendor_service_charge"`
+	VendorMinOrderAmount uint	`json:"vendor_min_order_amount"`
 }
 
 type MenuDataResponse struct {
@@ -189,6 +193,8 @@ func GetMenuDetails(c *gin.Context) {
 		menuId := c.Param("id")
 		query := services.DB.Table("menus m").
 			Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
+			v.vendor_note_for_menus AS VendorNoteForMenus, v.vendor_delivery_cost AS VendorDeliveryCost,
+			v.vendor_service_charge AS VendorServiceCharge, v.vendor_min_order_amount AS VendorMinOrderAmount,
 			m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
 			m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
 			Joins("JOIN vendors v ON v.id = m.vendor_id").
