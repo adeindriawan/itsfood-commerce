@@ -42,6 +42,7 @@ func AuthorizedUser() gin.HandlerFunc {
 			c.Abort()
 			return
 		} else {
+			c.Set("user", user) // add user object to the context so it can be brought to next middleware
 			c.Next()
 		}
 	}

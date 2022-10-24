@@ -39,8 +39,13 @@ func main() {
 			authorizedUser.DELETE("/cart", controllers.DeleteCart)
 			authorizedUser.GET("/cart/total", controllers.CartTotals)
 			authorizedUser.DELETE("/cart/destroy", controllers.DestroyCart)
-			authorizedUser.POST("/orders", controllers.CreateOrder)
 			authorizedUser.GET("/orders/:id/details", controllers.OrderDetails)
+
+			authorizedActiveUser := authorizedUser.Group("/")
+			authorizedActiveUser.Use(middlewares.AuthorizedActiveUser())
+			{
+				authorizedActiveUser.POST("/orders", controllers.CreateOrder)
+			}
 		}
 	}
 	
