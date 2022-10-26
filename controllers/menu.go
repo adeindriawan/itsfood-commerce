@@ -71,11 +71,11 @@ func GetMenus(c *gin.Context) {
 	}
 	if doesMinOrderQtyParamExist {
 		menuMinOrderQty := minOrderQtyParam[0]
-		query = query.Where("m.min_order_qty >= ?", menuMinOrderQty)
+		query = query.Where("m.min_order_qty <= ?", menuMinOrderQty)
 	}
 	if doesMaxOrderQtyParamExist {
 		menuMaxOrderQty := maxOrderQtyParam[0]
-		query = query.Where("m.max_order_qty <= ?", menuMaxOrderQty)
+		query = query.Where("m.max_order_qty >= ?", menuMaxOrderQty)
 	}
 	if doesPreOrderHoursParamExist {
 		menuPreOrderHours := preOrderHoursParam[0]
