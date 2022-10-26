@@ -30,8 +30,10 @@ type MenuData struct {
 }
 
 type MenuDataResponse struct {
-	Data []MenuData			`json:"data"`
-	TotalRows int64			`json:"totalRows"`
+	Data []MenuData		`json:"data"`
+	RowsCount int64		`json:"rowsCount"`
+	TotalRows int64		`json:"totalRows"`
+	
 }
 
 func GetMenus(c *gin.Context) {
@@ -43,8 +45,8 @@ func GetMenus(c *gin.Context) {
 	var maxOrderQtyParam, doesMaxOrderQtyParamExist = params["filters[maxOrderQty]"]
 	var preOrderDaysParam, doesPreOrderDaysParamExist = params["filters[preOrderDays]"]
 	var preOrderHoursParam, doesPreOrderHoursParamExist = params["filters[preOrderHours]"]
-	var priceMinParam, doesPriceMinParamExist = params["price[min]"]
-	var priceMaxParam, doesPriceMaxParamExist = params["price[max]"]
+	var priceMinParam, doesPriceMinParamExist = params["filters[price][min]"]
+	var priceMaxParam, doesPriceMaxParamExist = params["filters[price][max]"]
 	var lengthParam, doesLengthParamExist = params["length"]
 	var pageParam, doesPageParamExist = params["page"]
 	var searchParam, doesSearchParamExist = params["search"]
@@ -69,11 +71,11 @@ func GetMenus(c *gin.Context) {
 	}
 	if doesMinOrderQtyParamExist {
 		menuMinOrderQty := minOrderQtyParam[0]
-		query = query.Where("m.min_order_qty = ?", menuMinOrderQty)
+		query = query.Where("m.min_order_qty >= ?", menuMinOrderQty)
 	}
 	if doesMaxOrderQtyParamExist {
 		menuMaxOrderQty := maxOrderQtyParam[0]
-		query = query.Where("m.max_order_qty = ?", menuMaxOrderQty)
+		query = query.Where("m.max_order_qty <= ?", menuMaxOrderQty)
 	}
 	if doesPreOrderHoursParamExist {
 		menuPreOrderHours := preOrderHoursParam[0]
@@ -125,6 +127,8 @@ func GetMenus(c *gin.Context) {
 			query = query.Order(orderBy + " " + sort)
 		}
 	}
+	query.Scan(&menu)
+	totalRows := query.RowsAffected
 	if doesLengthParamExist {
 		length, err := strconv.Atoi(lengthParam[0])
 		if err != nil {
@@ -160,7 +164,8 @@ func GetMenus(c *gin.Context) {
 	} else {
 		menuData := &MenuDataResponse{
 			Data: menu,
-			TotalRows: rowsCount,
+			RowsCount: rowsCount,
+			TotalRows: totalRows,
 		}
 
 		c.JSON(200, gin.H{
@@ -203,8 +208,18 @@ func GetMenuDetails(c *gin.Context) {
 			Where("m.id =?", menuId).
 			Order("m.id asc").Limit(1).Find(&menu)
 		queryErr := query.Error
+		queryRows := query.RowsAffected
 		if queryErr != nil {
 			messages = append(messages, "Ada kesalahan pada query.")
+			c.JSON(400, gin.H{
+				"status": "failed",
+				"errors": messages,
+				"result": nil,
+				"description": "Gagal mengambil data detail menu.",
+			})
+			return
+		} else if queryRows == 0 {
+			messages = append(messages, "Tidak ada menu aktif dengan ID tersebut.")
 			c.JSON(400, gin.H{
 				"status": "failed",
 				"errors": messages,
