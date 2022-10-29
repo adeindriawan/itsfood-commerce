@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	// "fmt"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"strconv"
@@ -91,7 +90,7 @@ func AddToCart(c *gin.Context) {
 		return
 	}
 
-	if !_menuMaxOrderQtyValidated(cart.Qty, cart.MaxOrderQty) {
+	if cart.MaxOrderQty != 0 && !_menuMaxOrderQtyValidated(cart.Qty, cart.MaxOrderQty) {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": "Menu max order qty failed to be validated.",
