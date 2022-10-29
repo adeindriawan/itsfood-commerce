@@ -17,4 +17,4 @@ jobs:
         to: ${{ secrets.TELEGRAM_TO }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         message: |
-          ${{ github.actor }} create new ${{ github.event_name }} in ${{ github.repository }}.
+          ${{ github.actor }} ${{ github.action }} ${{ github.event_name }} in ${{ github.repository }}.
