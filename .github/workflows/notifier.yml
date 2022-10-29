@@ -2,22 +2,19 @@ name: Notifier
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [master]
   issues:
-    branches: [ main ]
+    types: [opened, edited, deleted, pinned, unpinned, closed, reopened, assigned]
 
 jobs:
 
   notifyTelegram:
     runs-on: ubuntu-latest
     steps:
-    - name: send custom message
+    - name: send telegram notification
       uses: appleboy/telegram-action@master
       with:
         to: ${{ secrets.TELEGRAM_TO }}
         token: ${{ secrets.TELEGRAM_TOKEN }}
         message: |
-          The ${{ github.event_name }} event triggered final step.
-          echo This event is a pull request that had an assignee removed.
+          ${{ github.actor }} create new ${{ github.event_name }} in ${{ github.repository }}.
