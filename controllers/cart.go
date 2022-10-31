@@ -454,11 +454,11 @@ func DestroyCart(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	errDelete := services.GetRedis().Del("cart" + userId).Err()
-	if errDelete != nil {
+	errDestroy := DestroyUserCart(userId)
+	if errDestroy != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
-			"errors": errDelete.Error(),
+			"errors": errDestroy.Error(),
 			"result": nil,
 			"description": "Gagal menghapus data keranjang belanja user.",
 		})
