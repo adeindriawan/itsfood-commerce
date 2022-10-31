@@ -629,6 +629,30 @@ func Logout(c *gin.Context) {
 		})
 		return
 	}
+	
+	user, err := utils.FetchAuth(au)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal mengambil user ID.",
+		})
+		return
+	}
+
+	userId := strconv.Itoa(int(user))
+	errDestroy := DestroyUserCart(userId)
+	if errDestroy != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errDestroy.Error(),
+			"result": nil,
+			"description": "Gagal menghapus data keranjang belanja user.",
+		})
+		return
+	}
+
 	deleted, delErr := DeleteAuth(au.AccessUuid)
 	if delErr != nil || deleted == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{
