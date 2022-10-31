@@ -24,7 +24,7 @@ type Cart struct {
 	PreOrderDays uint 	`json:"pre_order_days"`
 }
 
-func UserCartContent(userId string) ([]Cart, error) {
+func GetUserCartContent(userId string) ([]Cart, error) {
 	var content []Cart
 	cart, err := services.GetRedis().Get("cart" + userId).Result()
 	if err != nil {
@@ -37,11 +37,11 @@ func UserCartContent(userId string) ([]Cart, error) {
 	return content, nil
 }
 
-func UserCartItems(userCartContent []Cart) int {
+func GetUserCartItems(userCartContent []Cart) int {
 	return len(userCartContent)
 }
 
-func UserCartQty(userCartContent []Cart) int {
+func GetUserCartQty(userCartContent []Cart) int {
 	totalQty := 0
 	for _, v := range userCartContent {
 		totalQty += int(v.Qty)
@@ -50,13 +50,17 @@ func UserCartQty(userCartContent []Cart) int {
 	return totalQty
 }
 
-func UserCartAmount(userCartContent []Cart) int {
+func GetUserCartAmount(userCartContent []Cart) int {
 	totalAmount := 0
 	for _, v := range userCartContent {
 		totalAmount += int(v.Price) * int(v.Qty)
 	}
 
 	return totalAmount
+}
+
+func DestroyUserCart(userId string) error {
+	return services.GetRedis().Del("cart" + userId).Err()
 }
 
 func _menuExistsAndChangeQty(menuId uint64, qty uint, cartContent []Cart) (bool, []Cart) {
@@ -124,7 +128,7 @@ func AddToCart(c *gin.Context) {
 	}
 
 	userId := strconv.Itoa(int(user))
-	currentCartContent, noCurrentCartContent := UserCartContent(userId) // apa sudah ada cart dari user ini?
+	currentCartContent, noCurrentCartContent := GetUserCartContent(userId) // apa sudah ada cart dari user ini?
 	if noCurrentCartContent != nil { // jika belum, maka buat cart baru untuk user ini
 		cart.ID = uuid.NewV4().String()
 		cartContent = append(cartContent, cart)
@@ -217,7 +221,7 @@ func ViewCart(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cart, err := UserCartContent(userId)
+	cart, err := GetUserCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -260,7 +264,7 @@ func UpdateCart(c *gin.Context) {
 	}
 
 	userId := strconv.Itoa(int(user))
-	cartContent, err := UserCartContent(userId)
+	cartContent, err := GetUserCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -344,7 +348,7 @@ func DeleteCart(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cartContent, err := UserCartContent(userId)
+	cartContent, err := GetUserCartContent(userId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -402,7 +406,7 @@ func CartTotals(c *gin.Context) {
 		return
 	}
 	userId := strconv.Itoa(int(user))
-	cartContent, err := UserCartContent(userId)
+	cartContent, err := GetUserCartContent(userId)
 	
 	if err != nil {
 		c.JSON(400, gin.H{
@@ -414,9 +418,9 @@ func CartTotals(c *gin.Context) {
 		return
 	}
 
-	totalItems := UserCartItems(cartContent)
-	totalQty := UserCartQty(cartContent)
-	totalAmount := UserCartAmount(cartContent)
+	totalItems := GetUserCartItems(cartContent)
+	totalQty := GetUserCartQty(cartContent)
+	totalAmount := GetUserCartAmount(cartContent)
 
 	type CartTotal struct {
 		Items int		`json:"items"`

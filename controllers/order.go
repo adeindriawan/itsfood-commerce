@@ -65,7 +65,7 @@ func CreateOrder(c *gin.Context) {
 
 	u := c.MustGet("user").(models.User)
 	userId := strconv.Itoa(int(u.ID))
-	cartContent, errCartContent := UserCartContent(userId)
+	cartContent, errCartContent := GetUserCartContent(userId)
 	if errCartContent != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -76,7 +76,7 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	// check apakah cart customer tersebut berisi setidaknya 1 item
-	totalItems := UserCartItems(cartContent)
+	totalItems := GetUserCartItems(cartContent)
 	if totalItems == 0 {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -88,8 +88,8 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	order.NumOfMenus = totalItems
-	order.QtyOfMenus = UserCartQty(cartContent)
-	order.Amount = UserCartAmount(cartContent)
+	order.QtyOfMenus = GetUserCartQty(cartContent)
+	order.Amount = GetUserCartAmount(cartContent)
 	
 	// check apakah item di cartnya sudah memenuhi aturan min/max (sudah teratasi di controllers/cart) dan pre order
 	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
