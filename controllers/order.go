@@ -13,9 +13,9 @@ type NewOrder struct {
 	OrderedBy uint64 			`json:"ordered_by"`
 	OrderedFor string			`json:"ordered_for"`
 	OrderedTo string			`json:"ordered_to"`
-	NumOfMenus uint				`json:"num_of_menus"`
-	QtyOfMenus uint				`json:"qty_of_menus"`
-	Amount uint64					`json:"amount"`
+	NumOfMenus int				`json:"num_of_menus"`
+	QtyOfMenus int				`json:"qty_of_menus"`
+	Amount int						`json:"amount"`
 	Purpose string				`json:"purpose"`
 	Activity string				`json:"activity"`
 	SourceOfFund string		`json:"source_of_fund"`
@@ -76,7 +76,8 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	// check apakah cart customer tersebut berisi setidaknya 1 item
-	if len(cartContent) == 0 {
+	totalItems := UserCartItems(cartContent)
+	if totalItems == 0 {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": nil,
@@ -85,6 +86,10 @@ func CreateOrder(c *gin.Context) {
 		})
 		return
 	}
+
+	order.NumOfMenus = totalItems
+	order.QtyOfMenus = UserCartQty(cartContent)
+	order.Amount = UserCartAmount(cartContent)
 	
 	// check apakah item di cartnya sudah memenuhi aturan min/max (sudah teratasi di controllers/cart) dan pre order
 	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)

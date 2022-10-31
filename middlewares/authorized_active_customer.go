@@ -17,8 +17,20 @@ func AuthorizedActiveUser() gin.HandlerFunc {
 			})
 			c.Abort()
 			return
-		} else {
-			c.Next()
 		}
+
+		cust := c.MustGet("customer").(models.Customer)
+		if cust.Status != "Activated" {
+			c.JSON(403, gin.H{
+				"status": "failed",
+				"errors": "Customer sedang berstatus tidak aktif.",
+				"result": nil,
+				"description": "Tidak dapat melanjutkan request karena Customer berstatus tidak aktif.",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }

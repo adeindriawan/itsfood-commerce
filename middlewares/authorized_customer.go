@@ -7,7 +7,7 @@ import (
 	"github.com/adeindriawan/itsfood-commerce/models"
 )
 
-func AuthorizedUser() gin.HandlerFunc {
+func AuthorizedCustomer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userId, err := utils.AuthCheck(c)
 		if err != nil {
@@ -42,7 +42,19 @@ func AuthorizedUser() gin.HandlerFunc {
 			c.Abort()
 			return
 		} else {
+			var customer models.Customer
+			if err := services.DB.Where("user_id = ?", userId).First(&customer).Error; err != nil {
+				c.JSON(400, gin.H{
+					"status": "failed",
+					"errors": err.Error(),
+					"result": userId,
+					"description": "Gagal mengambil data customer dengan user ID yang dimaksud.",
+				})
+				c.Abort()
+				return
+			}
 			c.Set("user", user) // add user object to the context so it can be brought to next middleware
+			c.Set("customer", customer) // add customer object to the context so it can be brought to next middleware
 			c.Next()
 		}
 	}

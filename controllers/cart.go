@@ -37,6 +37,28 @@ func UserCartContent(userId string) ([]Cart, error) {
 	return content, nil
 }
 
+func UserCartItems(userCartContent []Cart) int {
+	return len(userCartContent)
+}
+
+func UserCartQty(userCartContent []Cart) int {
+	totalQty := 0
+	for _, v := range userCartContent {
+		totalQty += int(v.Qty)
+	}
+
+	return totalQty
+}
+
+func UserCartAmount(userCartContent []Cart) int {
+	totalAmount := 0
+	for _, v := range userCartContent {
+		totalAmount += int(v.Price) * int(v.Qty)
+	}
+
+	return totalAmount
+}
+
 func _menuExistsAndChangeQty(menuId uint64, qty uint, cartContent []Cart) (bool, []Cart) {
 	for i, search := range cartContent {
 		if search.MenuID == menuId {
@@ -392,12 +414,9 @@ func CartTotals(c *gin.Context) {
 		return
 	}
 
-	totalQty := 0
-	totalAmount := 0
-	for _, v := range cartContent {
-		totalQty += int(v.Qty)
-		totalAmount += int(v.Price) * int(v.Qty)
-	}
+	totalItems := UserCartItems(cartContent)
+	totalQty := UserCartQty(cartContent)
+	totalAmount := UserCartAmount(cartContent)
 
 	type CartTotal struct {
 		Items int		`json:"items"`
@@ -407,7 +426,7 @@ func CartTotals(c *gin.Context) {
 
 	var total CartTotal
 
-	total.Items = len(cartContent)
+	total.Items = totalItems
 	total.Qty = totalQty
 	total.Amount = totalAmount
 	

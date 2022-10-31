@@ -31,7 +31,7 @@ func main() {
 		authorized.POST("/logout", controllers.Logout)
 
 		authorizedUser := authorized.Group("/")
-		authorizedUser.Use(middlewares.AuthorizedUser())
+		authorizedUser.Use(middlewares.AuthorizedCustomer())
 		{
 			authorizedUser.POST("/cart", controllers.AddToCart)
 			authorizedUser.GET("/cart", controllers.ViewCart)
