@@ -9,13 +9,10 @@ import (
 	"github.com/adeindriawan/itsfood-commerce/models"
 )
 
-type NewOrder struct {
+type OrderPayload struct {
 	OrderedBy uint64 			`json:"ordered_by"`
 	OrderedFor string			`json:"ordered_for"`
 	OrderedTo string			`json:"ordered_to"`
-	NumOfMenus int				`json:"num_of_menus"`
-	QtyOfMenus int				`json:"qty_of_menus"`
-	Amount int						`json:"amount"`
 	Purpose string				`json:"purpose"`
 	Activity string				`json:"activity"`
 	SourceOfFund string		`json:"source_of_fund"`
@@ -23,7 +20,7 @@ type NewOrder struct {
 	Info string						`json:"info"`
 }
 
-func _menuPreOrderHoursValidated(cartContent []Cart, orderedFor time.Time) bool {
+func _menuPreOrderValidated(cartContent []Cart, orderedFor time.Time) (bool, time.Time) {
 	var minDeliveryTime time.Time
 	var minHours, minDays uint
 	minHours = 0
@@ -39,20 +36,18 @@ func _menuPreOrderHoursValidated(cartContent []Cart, orderedFor time.Time) bool 
 		}
 
 		if minDays > 0 {
-			minDeliveryTime = now.AddDate(0, 0, int(minDays))
+			minDate := now.AddDate(0, 0, int(minDays))
+			minDeliveryTime = time.Date(minDate.Year(), minDate.Month(), minDate.Day(), 0, 0, 0, 0, minDate.Location())
 		} else {
 			minDeliveryTime = now.Add(time.Hour * time.Duration(minHours))
 		}
 	}
 
-	return !minDeliveryTime.After(orderedFor)
+	return !minDeliveryTime.After(orderedFor), minDeliveryTime
 }
 
 func CreateOrder(c *gin.Context) {
-	// check apakah user sudah terautentikasi dan merupakan customer -> sudah teratasi dengan middleware
-	// check apakan user/customer tersebut berstatus aktif -> sudah teratasi dengan middleware
-
-	var order NewOrder
+	var order OrderPayload
 	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -64,6 +59,9 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	u := c.MustGet("user").(models.User)
+	// mengambil data customer dari context
+	// cust := c.MustGet("customer").(models.Customer)
+	// customer := services.DB.Preload("unit").Find()
 	userId := strconv.Itoa(int(u.ID))
 	cartContent, errCartContent := GetUserCartContent(userId)
 	if errCartContent != nil {
@@ -86,12 +84,7 @@ func CreateOrder(c *gin.Context) {
 		})
 		return
 	}
-
-	order.NumOfMenus = totalItems
-	order.QtyOfMenus = GetUserCartQty(cartContent)
-	order.Amount = GetUserCartAmount(cartContent)
 	
-	// check apakah item di cartnya sudah memenuhi aturan min/max (sudah teratasi di controllers/cart) dan pre order
 	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
 	if errConvertingOrderedFor != nil {
 		c.JSON(400, gin.H{
@@ -102,17 +95,75 @@ func CreateOrder(c *gin.Context) {
 		})
 		return
 	}
-	if !_menuPreOrderHoursValidated(cartContent, orderedFor) {
+	isPreOrderValidated, minDeliveryTime := _menuPreOrderValidated(cartContent, orderedFor)
+	if !isPreOrderValidated {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": "Order time ahead of the minimum delivery time.",
-			"result": nil,
-			"description": "Waktu pengantaran minimum lebih lama dibandingkan dengan waktu pengantaran pesanan.",
+			"result": map[string]interface{}{
+				"Minimum delivery time": minDeliveryTime,
+			},
+			"description": "Waktu pengantaran pesanan yang diinginkan lebih cepat dibandingkan dengan waktu minimum pengiriman.",
 		})
 		return
 	}
 
+	orderedBy, _ := strconv.ParseUint(userId, 10, 64)
+	newOrder := models.Order{
+		OrderedBy: orderedBy,
+		OrderedFor: orderedFor,
+		OrderedTo: order.OrderedTo,
+		NumOfMenus: uint(totalItems),
+		QtyOfMenus: uint(GetUserCartQty(cartContent)),
+		Amount: uint64(GetUserCartAmount(cartContent)),
+		Purpose: order.Purpose,
+		Activity: order.Activity,
+		SourceOfFund: order.SourceOfFund,
+		PaymentOption: order.PaymentOption,
+		Info: order.Info,
+		Status: "Created",
+		CreatedAt: time.Now(),
+		CreatedBy: u.Name,
+	}
+
 	// Tambahkan record ke tabel orders dan order details
+	creatingOrder := services.DB.Create(&newOrder)
+	errorCreatingOrder := creatingOrder.Error
+	if errorCreatingOrder != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorCreatingOrder.Error(),
+			"result": order,
+			"description": "Gagal membuat menyimpan order baru.",
+		})
+		return
+	}
+	newOrderID := newOrder.ID
+
+	for _, v := range cartContent {
+		newOrderDetails := models.OrderDetail{
+			OrderID: newOrderID,
+			MenuID: v.MenuID,
+			Qty: v.Qty,
+			Price: v.Price,
+			COGS: v.COGS,
+			Status: "Ordered",
+			CreatedAt: time.Now(),
+			CreatedBy: u.Name,
+		}
+		creatingOrderDetails := services.DB.Create(&newOrderDetails)
+		errorCreatingOrderDetails := creatingOrderDetails.Error
+		if errorCreatingOrderDetails != nil {
+			c.JSON(400, gin.H{
+				"status": "failed",
+				"errors": errorCreatingOrderDetails.Error(),
+				"result": v,
+				"description": "Gagal menyimpan data detail order.",
+			})
+			return
+		}
+	}
+
 	// apakah ada order yang mengandung ITSMINE, jika ya, tembakkan ke API ITSMine
 	// apakah ada menu yang vendornya memiliki default delivery cost/service charge, jika ya, tambahkan record ke costs
 	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut
@@ -122,12 +173,17 @@ func CreateOrder(c *gin.Context) {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": errorSendingTelegram.Error(),
+			"result": nil,
+			"description": "Gagal mengirimkan notifikasi Telegram.",
 		})
 		return
 	}
+	DestroyUserCart(userId)
 	c.JSON(200, gin.H{
 		"status": "success",
-		"result": order,
+		"result": newOrder,
+		"errors": nil,
+		"description": "Berhasil membuat order baru.",
 	})
 }
 
