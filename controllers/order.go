@@ -58,11 +58,9 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
-	u := c.MustGet("user").(models.User)
-	// mengambil data customer dari context
-	// cust := c.MustGet("customer").(models.Customer)
-	// customer := services.DB.Preload("unit").Find()
-	userId := strconv.Itoa(int(u.ID))
+	userContext := c.MustGet("user").(models.User)
+	customerContext := c.MustGet("customer").(models.Customer)
+	userId := strconv.Itoa(int(userContext.ID))
 	cartContent, errCartContent := GetUserCartContent(userId)
 	if errCartContent != nil {
 		c.JSON(400, gin.H{
@@ -108,7 +106,7 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
-	orderedBy, _ := strconv.ParseUint(userId, 10, 64)
+	orderedBy := customerContext.ID
 	newOrder := models.Order{
 		OrderedBy: orderedBy,
 		OrderedFor: orderedFor,
@@ -123,7 +121,7 @@ func CreateOrder(c *gin.Context) {
 		Info: order.Info,
 		Status: "Created",
 		CreatedAt: time.Now(),
-		CreatedBy: u.Name,
+		CreatedBy: userContext.Name,
 	}
 
 	// Tambahkan record ke tabel orders dan order details
@@ -139,6 +137,18 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	newOrderID := newOrder.ID
+	var orderModel models.Order
+	getOrderData := services.DB.Preload("Customer.User").Preload("Customer.Unit").Find(&orderModel, newOrderID)
+	errorGettingOrderData := getOrderData.Error
+	if errorGettingOrderData != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": errorGettingOrderData.Error(),
+			"result": nil,
+			"description": "Gagal mengambil data order.",
+		})
+		return
+	}
 
 	for _, v := range cartContent {
 		newOrderDetails := models.OrderDetail{
@@ -149,7 +159,7 @@ func CreateOrder(c *gin.Context) {
 			COGS: v.COGS,
 			Status: "Ordered",
 			CreatedAt: time.Now(),
-			CreatedBy: u.Name,
+			CreatedBy: userContext.Name,
 		}
 		creatingOrderDetails := services.DB.Create(&newOrderDetails)
 		errorCreatingOrderDetails := creatingOrderDetails.Error
@@ -181,7 +191,9 @@ func CreateOrder(c *gin.Context) {
 	DestroyUserCart(userId)
 	c.JSON(200, gin.H{
 		"status": "success",
-		"result": newOrder,
+		"result": map[string]interface{}{
+			"order": orderModel,
+		},
 		"errors": nil,
 		"description": "Berhasil membuat order baru.",
 	})
