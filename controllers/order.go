@@ -60,8 +60,8 @@ func CreateOrder(c *gin.Context) {
 
 	userContext := c.MustGet("user").(models.User)
 	customerContext := c.MustGet("customer").(models.Customer)
-	userId := strconv.Itoa(int(userContext.ID))
-	cartContent, errCartContent := GetUserCartContent(userId)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cartContent, errCartContent := GetCustomerCartContent(customerId)
 	if errCartContent != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -72,7 +72,7 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	// check apakah cart customer tersebut berisi setidaknya 1 item
-	totalItems := GetUserCartItems(cartContent)
+	totalItems := GetCustomerCartItems(cartContent)
 	if totalItems == 0 {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -112,8 +112,8 @@ func CreateOrder(c *gin.Context) {
 		OrderedFor: orderedFor,
 		OrderedTo: order.OrderedTo,
 		NumOfMenus: uint(totalItems),
-		QtyOfMenus: uint(GetUserCartQty(cartContent)),
-		Amount: uint64(GetUserCartAmount(cartContent)),
+		QtyOfMenus: uint(GetCustomerCartQty(cartContent)),
+		Amount: uint64(GetCustomerCartAmount(cartContent)),
 		Purpose: order.Purpose,
 		Activity: order.Activity,
 		SourceOfFund: order.SourceOfFund,
@@ -188,7 +188,7 @@ func CreateOrder(c *gin.Context) {
 		})
 		return
 	}
-	DestroyUserCart(userId)
+	DestroyCustomerCart(customerId)
 	c.JSON(200, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{

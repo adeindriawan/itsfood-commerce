@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"strconv"
-	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/twinj/uuid"
+	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/adeindriawan/itsfood-commerce/utils"
 )
 
@@ -24,9 +25,9 @@ type Cart struct {
 	PreOrderDays uint 	`json:"pre_order_days"`
 }
 
-func GetUserCartContent(userId string) ([]Cart, error) {
+func GetCustomerCartContent(customerId string) ([]Cart, error) {
 	var content []Cart
-	cart, err := services.GetRedis().Get("cart" + userId).Result()
+	cart, err := services.GetRedis().Get("cart" + customerId).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -37,30 +38,30 @@ func GetUserCartContent(userId string) ([]Cart, error) {
 	return content, nil
 }
 
-func GetUserCartItems(userCartContent []Cart) int {
-	return len(userCartContent)
+func GetCustomerCartItems(customerCartContent []Cart) int {
+	return len(customerCartContent)
 }
 
-func GetUserCartQty(userCartContent []Cart) int {
+func GetCustomerCartQty(customerCartContent []Cart) int {
 	totalQty := 0
-	for _, v := range userCartContent {
+	for _, v := range customerCartContent {
 		totalQty += int(v.Qty)
 	}
 
 	return totalQty
 }
 
-func GetUserCartAmount(userCartContent []Cart) int {
+func GetCustomerCartAmount(customerCartContent []Cart) int {
 	totalAmount := 0
-	for _, v := range userCartContent {
+	for _, v := range customerCartContent {
 		totalAmount += int(v.Price) * int(v.Qty)
 	}
 
 	return totalAmount
 }
 
-func DestroyUserCart(userId string) error {
-	return services.GetRedis().Del("cart" + userId).Err()
+func DestroyCustomerCart(customerId string) error {
+	return services.GetRedis().Del("cart" + customerId).Err()
 }
 
 func _menuExistsAndChangeQty(menuId uint64, qty uint, cartContent []Cart) (bool, []Cart) {
@@ -94,7 +95,7 @@ func AddToCart(c *gin.Context) {
 		return
 	}
 
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -104,6 +105,7 @@ func AddToCart(c *gin.Context) {
 		})
 		return
 	}
+	customerContext := c.MustGet("customer").(models.Customer)
 
 	if !_menuMinOrderQtyValidated(cart.Qty, cart.MinOrderQty) {
 		c.JSON(400, gin.H{
@@ -127,9 +129,9 @@ func AddToCart(c *gin.Context) {
 		return
 	}
 
-	userId := strconv.Itoa(int(user))
-	currentCartContent, noCurrentCartContent := GetUserCartContent(userId) // apa sudah ada cart dari user ini?
-	if noCurrentCartContent != nil { // jika belum, maka buat cart baru untuk user ini
+	customerId := strconv.Itoa(int(customerContext.ID))
+	currentCartContent, noCurrentCartContent := GetCustomerCartContent(customerId) // apa sudah ada cart dari customer ini?
+	if noCurrentCartContent != nil { // jika belum, maka buat cart baru untuk customer ini
 		cart.ID = uuid.NewV4().String()
 		cartContent = append(cartContent, cart)
 		json, err := json.Marshal(cartContent)
@@ -142,7 +144,7 @@ func AddToCart(c *gin.Context) {
 			})
 			return
 		}
-		errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+		errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 		if errSave != nil {
 			c.JSON(400, gin.H{
 				"status": "failed",
@@ -165,7 +167,7 @@ func AddToCart(c *gin.Context) {
 				})
 				return
 			}
-			errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+			errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 			if errSave != nil {
 				c.JSON(400, gin.H{
 					"status": "failed",
@@ -188,7 +190,7 @@ func AddToCart(c *gin.Context) {
 				})
 				return
 			}
-			errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+			errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 			if errSave != nil {
 				c.JSON(400, gin.H{
 					"status": "failed",
@@ -210,7 +212,7 @@ func AddToCart(c *gin.Context) {
 }
 
 func ViewCart(c *gin.Context) {
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -220,8 +222,9 @@ func ViewCart(c *gin.Context) {
 		})
 		return
 	}
-	userId := strconv.Itoa(int(user))
-	cart, err := GetUserCartContent(userId)
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cart, err := GetCustomerCartContent(customerId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -252,7 +255,7 @@ func UpdateCart(c *gin.Context) {
 		return
 	}
 
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -262,9 +265,10 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
+	customerContext := c.MustGet("customer").(models.Customer)
 
-	userId := strconv.Itoa(int(user))
-	cartContent, err := GetUserCartContent(userId)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cartContent, err := GetCustomerCartContent(customerId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -307,7 +311,7 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
-	errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+	errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 	if errSave != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -337,7 +341,7 @@ func DeleteCart(c *gin.Context) {
 		return
 	}
 
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -347,14 +351,15 @@ func DeleteCart(c *gin.Context) {
 		})
 		return
 	}
-	userId := strconv.Itoa(int(user))
-	cartContent, err := GetUserCartContent(userId)
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cartContent, err := GetCustomerCartContent(customerId)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
-			"description": "Tidak ada isi keranjang belanja dari user yang bersangkutan.",
+			"description": "Tidak ada isi keranjang belanja dari customer yang bersangkutan.",
 		})
 		return
 	}
@@ -376,7 +381,7 @@ func DeleteCart(c *gin.Context) {
 		})
 		return
 	}
-	errSave := services.GetRedis().Set("cart" + userId, json, 0).Err()
+	errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 	if errSave != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
@@ -395,7 +400,7 @@ func DeleteCart(c *gin.Context) {
 }
 
 func CartTotals(c *gin.Context) {
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -405,22 +410,23 @@ func CartTotals(c *gin.Context) {
 		})
 		return
 	}
-	userId := strconv.Itoa(int(user))
-	cartContent, err := GetUserCartContent(userId)
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cartContent, err := GetCustomerCartContent(customerId)
 	
 	if err != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
-			"description": "Tidak ada isi keranjang belanja dari user yang bersangkutan.",
+			"description": "Tidak ada isi keranjang belanja dari customer yang bersangkutan.",
 		})
 		return
 	}
 
-	totalItems := GetUserCartItems(cartContent)
-	totalQty := GetUserCartQty(cartContent)
-	totalAmount := GetUserCartAmount(cartContent)
+	totalItems := GetCustomerCartItems(cartContent)
+	totalQty := GetCustomerCartQty(cartContent)
+	totalAmount := GetCustomerCartAmount(cartContent)
 
 	type CartTotal struct {
 		Items int		`json:"items"`
@@ -438,12 +444,12 @@ func CartTotals(c *gin.Context) {
 		"status": "success",
 		"errors": nil,
 		"result": total,
-		"description": "Berhasil mengambil jumlah item di dalam keranjang belanja user.",
+		"description": "Berhasil mengambil jumlah item di dalam keranjang belanja customer.",
 	})
 }
 
 func DestroyCart(c *gin.Context) {
-	user, err := utils.AuthCheck(c)
+	_, err := utils.AuthCheck(c)
 	if err != nil {
 		c.JSON(401, gin.H{
 			"status": "failed",
@@ -453,14 +459,15 @@ func DestroyCart(c *gin.Context) {
 		})
 		return
 	}
-	userId := strconv.Itoa(int(user))
-	errDestroy := DestroyUserCart(userId)
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	errDestroy := DestroyCustomerCart(customerId)
 	if errDestroy != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": errDestroy.Error(),
 			"result": nil,
-			"description": "Gagal menghapus data keranjang belanja user.",
+			"description": "Gagal menghapus data keranjang belanja customer.",
 		})
 		return
 	}
@@ -469,6 +476,6 @@ func DestroyCart(c *gin.Context) {
 		"status": "success",
 		"errors": nil,
 		"result": nil,
-		"description": "Berhasil menghapus data keranjang belanja user.",
+		"description": "Berhasil menghapus data keranjang belanja customer.",
 	})
 }

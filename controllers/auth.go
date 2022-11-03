@@ -630,8 +630,8 @@ func Logout(c *gin.Context) {
 		return
 	}
 	
-	user, err := utils.FetchAuth(au)
-	if err != nil {
+	_, errorFetchingAuth := utils.FetchAuth(au)
+	if errorFetchingAuth != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
@@ -641,16 +641,19 @@ func Logout(c *gin.Context) {
 		return
 	}
 
-	userId := strconv.Itoa(int(user))
-	errDestroy := DestroyUserCart(userId)
-	if errDestroy != nil {
-		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": errDestroy.Error(),
-			"result": nil,
-			"description": "Gagal menghapus data keranjang belanja user.",
-		})
-		return
+	if checkCustomerContext, exists := c.Get("customer"); exists {
+		customerContext := checkCustomerContext.(models.Customer)
+		customerId := strconv.Itoa(int(customerContext.ID))
+		errDestroy := DestroyCustomerCart(customerId)
+		if errDestroy != nil {
+			c.JSON(400, gin.H{
+				"status": "failed",
+				"errors": errDestroy.Error(),
+				"result": nil,
+				"description": "Gagal menghapus data keranjang belanja user.",
+			})
+			return
+		}	
 	}
 
 	deleted, delErr := DeleteAuth(au.AccessUuid)
