@@ -59,12 +59,13 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
-	if !services.SendMail(mailTo, mailSubject, mailBody) {
+	_, errorSendingResetPasswordEmail := services.SendMail(mailTo, mailSubject, mailBody)
+	if errorSendingResetPasswordEmail != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"errors": nil,
 			"result": nil,
-			"description": "Gagal mengirim email.",
+			"description": "Gagal mengirim email berisi token ke alamat " + mailTo,
 		})
 		return
 	}
@@ -73,7 +74,7 @@ func ForgotPassword(c *gin.Context) {
 		"status": "success",
 		"errors": nil,
 		"result": user,
-		"description": "Sukses mengirim email berisi token ke alamat " + user.Email,
+		"description": "Sukses mengirim email berisi token ke alamat " + mailTo,
 	})
 }
 

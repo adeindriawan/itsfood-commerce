@@ -8,7 +8,7 @@ import (
 	"fmt"
 )
 
-func SendMail(mailTo string, mailSubject string, mailBody string) bool {
+func SendMail(mailTo string, mailSubject string, mailBody string) (bool, error) {
 	host := os.Getenv("SMTP_HOST")
 	portVar := os.Getenv("SMTP_PORT")
 	port, _ := strconv.Atoi(portVar)
@@ -28,8 +28,8 @@ func SendMail(mailTo string, mailSubject string, mailBody string) bool {
 		log.Fatal(errSendingEmail.Error())
 		fmt.Println(port)
 		fmt.Println(host)
-		return false
+		return false, errSendingEmail
 	}
 	
-	return true
+	return true, nil
 }
