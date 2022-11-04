@@ -32,6 +32,7 @@ func SendTelegramToGroup(text string) (bool, error) {
 	body, _ := json.Marshal(map[string]string{
 		"chat_id": ChatId,
 		"text":    text,
+		"parse_mode": "html",
 	})
 	response, err = http.Post(
 		url,

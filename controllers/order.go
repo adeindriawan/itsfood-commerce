@@ -173,12 +173,24 @@ func CreateOrder(c *gin.Context) {
 			return
 		}
 	}
+	telegramMessage := "Ada order baru nomor #"
+	orderId := strconv.Itoa(int(newOrderID))
+	orderedForYear := strconv.Itoa(orderModel.OrderedFor.Year())
+	orderedForMonth := orderModel.OrderedFor.Month().String()
+	orderedForDay := strconv.Itoa(orderModel.OrderedFor.Day())
+	orderedForHour := strconv.Itoa(orderModel.OrderedFor.Hour())
+	orderedForMinute := strconv.Itoa(orderModel.OrderedFor.Minute())
+	telegramMessage += orderId + " dari " + orderModel.Customer.User.Name + " di " + orderModel.Customer.Unit.Name
+	telegramMessage += " untuk diantar pada " + orderedForDay + " " + orderedForMonth + " " + orderedForYear
+	telegramMessage += " " + orderedForHour + ":" + orderedForMinute
+	telegramMessage += ", klik <a href='https://itsfood.id/publics/view-order/" + orderId + "'> di sini</a> untuk detail."
+	// Ada order baru nomor #74345 dari SDMO ITS di SDMO ITS untuk diantar pada hari Jumat 04/11/2022 pukul 11:00, klik di sini (https://itsfood.id/publics/view-order/74345) untuk detail.
 
 	// apakah ada order yang mengandung ITSMINE, jika ya, tembakkan ke API ITSMine
 	// apakah ada menu yang vendornya memiliki default delivery cost/service charge, jika ya, tambahkan record ke costs
 	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut
 
-	_, errorSendingTelegram := services.SendTelegramToGroup("Chat test from Gin")
+	_, errorSendingTelegram := services.SendTelegramToGroup(telegramMessage)
 	if errorSendingTelegram != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
