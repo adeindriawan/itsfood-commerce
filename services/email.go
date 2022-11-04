@@ -16,7 +16,7 @@ func SendMail(mailTo string, mailSubject string, mailBody string) bool {
 	password := os.Getenv("AUTH_PASSWORD")
 
 	msg := gomail.NewMessage()
-	msg.SetHeader("From", "<recovery@itsfood.my.id>")
+	msg.SetHeader("From", "<no-reply@itsfood.my.id>")
 	msg.SetHeader("To", mailTo)
 	msg.SetHeader("Subject", mailSubject)
 	msg.SetBody("text/html", mailBody)
@@ -30,6 +30,6 @@ func SendMail(mailTo string, mailSubject string, mailBody string) bool {
 		fmt.Println(host)
 		return false
 	}
-
+	
 	return true
 }

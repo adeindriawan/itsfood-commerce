@@ -17,6 +17,7 @@ type Cart struct {
 	Price uint64				`json:"price"`
 	COGS uint64					`json:"cogs"`
 	VendorID uint64			`json:"vendor_id"`
+	VendorName string		`json:"vendor_name"`
 	Qty uint 						`json:"qty"`
 	Image string				`json:"image"`
 	MinOrderQty uint		`json:"min_order_qty"`

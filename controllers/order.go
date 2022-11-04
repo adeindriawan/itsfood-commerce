@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	// "fmt"
+	"fmt"
 	"time"
 	"strconv"
 	"github.com/gin-gonic/gin"
@@ -173,6 +173,8 @@ func CreateOrder(c *gin.Context) {
 			return
 		}
 	}
+	DestroyCustomerCart(customerId)
+
 	telegramMessage := "Ada order baru nomor #"
 	orderId := strconv.Itoa(int(newOrderID))
 	orderedForYear := strconv.Itoa(orderModel.OrderedFor.Year())
@@ -200,7 +202,9 @@ func CreateOrder(c *gin.Context) {
 		})
 		return
 	}
-	DestroyCustomerCart(customerId)
+	
+	_sendEmailToAdmins(orderModel, cartContent)
+
 	c.JSON(200, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
@@ -209,6 +213,66 @@ func CreateOrder(c *gin.Context) {
 		"errors": nil,
 		"description": "Berhasil membuat order baru.",
 	})
+}
+
+func _newOrderEmailBody(orderModel models.Order, cartContent []Cart, adminID uint64) string {
+	adminId := strconv.Itoa(int(adminID))
+	orderId := strconv.Itoa(int(orderModel.ID))
+	orderedForYear := strconv.Itoa(orderModel.OrderedFor.Year())
+	orderedForMonth := orderModel.OrderedFor.Month().String()
+	orderedForDay := strconv.Itoa(orderModel.OrderedFor.Day())
+	orderedForHour := strconv.Itoa(orderModel.OrderedFor.Hour())
+	orderedForMinute := strconv.Itoa(orderModel.OrderedFor.Minute())
+	customerCartAmount := strconv.Itoa(int(GetCustomerCartAmount(cartContent)))
+	cartDetails := _cartDetailsForEmail(cartContent)
+	emailMessage := "Dear admin Itsfood,<br><br><br>"
+	emailMessage += "Ada order baru dengan ID #" + orderId + " dari " + orderModel.Customer.User.Name + " di " + orderModel.Customer.Unit.Name
+	emailMessage += " dengan rincian sebagai berikut:<br>"
+	emailMessage += cartDetails + "<br>"
+	emailMessage += "Total penjualan: Rp" + customerCartAmount + "<br>"
+	emailMessage += "Diantar pada: " + orderedForDay + " " + orderedForMonth + " " + orderedForYear + " " + orderedForHour + ":" + orderedForMinute + "<br>"
+	emailMessage += "Tujuan: " + orderModel.OrderedTo + "<br>"
+	emailMessage += "Untuk keperluan: " + orderModel.Purpose + "<br>"
+	emailMessage += "Informasi tambahan: " + orderModel.Info + "<br>"
+	emailMessage += "Kontak pembeli: " + orderModel.Customer.User.Phone + "<br>"
+	emailMessage += "Silakan klik link di bawah ini untuk memproses:<br>"
+	emailMessage += "<a style='font-size:14px; font-weight:bold; text-decoration:none; line-height:40px; width:100%; display:inline-block;' href='https://itsfood.id/publics/proceed-order/"+ orderId +"/" + adminId +"'><span style='color:#000091'>Proses Pesanan Ini</span></a>"
+
+	return emailMessage
+}
+
+func _sendEmailToAdmins(orderModel models.Order, cartContent []Cart) (bool, error) {
+	var admins []models.Admin
+	query := services.DB.Preload("User").Find(&admins)
+	queryError := query.Error
+	if queryError != nil {
+		return false, queryError
+	}
+
+	for _, v := range admins {
+		emailBody := _newOrderEmailBody(orderModel, cartContent, v.ID)
+		services.SendMail(v.Email, "[Itsfood] Pesanan Baru", emailBody)
+		fmt.Println(v.Email)
+	}
+
+	return true, nil
+}
+
+func _cartDetailsForEmail(customerCartContent []Cart) string {
+	cartDetails := "<table><thead><tr><th>Nama Menu</th><th>Nama Vendor</th><th>Jumlah</th><th>Harga Pokok</th><th>Harga Jual</th><th>Pembayaran ke Vendor</th><th>Pembayaran dari Pembeli</th></tr></thead><tbody>"
+	for _, v := range(customerCartContent) {
+		Qty := strconv.Itoa(int(v.Qty))
+		COGS := strconv.Itoa(int(v.COGS))
+		Price := strconv.Itoa(int(v.Price))
+		paymentToVendorNominal := int(v.Qty) * int(v.COGS)
+		paymentToVendor := strconv.Itoa(int(paymentToVendorNominal))
+		paymentFromCustomerNominal := int(v.Qty) * int(v.Price)
+		paymentFromCustomer := strconv.Itoa(int(paymentFromCustomerNominal))
+		cartDetails += "<tr><td>" + v.Name + "</td><td>" + v.VendorName + "</td><td>" + Qty + " porsi</td></td>Rp" + COGS + "</td><td>Rp" + Price + "</td><td>Rp" + paymentToVendor + "</td></td>Rp" + paymentFromCustomer + "</td></tr>"
+	}
+	cartDetails += "</tbody></table>"
+
+	return cartDetails
 }
 
 type OrderDetailsUri struct {
