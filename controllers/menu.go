@@ -18,6 +18,7 @@ type MenuData struct {
 	Type models.MenuCategory 	`json:"category"`
 	RetailPrice uint 					`json:"retail_price"`
 	WholesalePrice uint				`json:"wholesale_price"`
+	COGS uint									`json:"cogs"`
 	PreOrderDays uint 				`json:"pre_order_days"`
 	PreOrderHours uint 				`json:"pre_order_hours"`
 	MinOrderQty uint 					`json:"min_order_qty"`
@@ -55,7 +56,7 @@ func GetMenus(c *gin.Context) {
 	var vendorIdParam, doesVendorIdParamExist = params["vendorId"]
 	query := services.DB.Table("menus m").
 		Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
-		m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
+		m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
 		m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
 		Joins("JOIN vendors v ON v.id = m.vendor_id").
 		Joins("JOIN users u ON u.id = v.user_id").
@@ -200,7 +201,7 @@ func GetMenuDetails(c *gin.Context) {
 			Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
 			v.vendor_note_for_menus AS VendorNoteForMenus, v.vendor_delivery_cost AS VendorDeliveryCost,
 			v.vendor_service_charge AS VendorServiceCharge, v.vendor_min_order_amount AS VendorMinOrderAmount,
-			m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.pre_order_days AS PreOrderDays,
+			m.type AS Type, m.retail_price AS RetailPrice, m.wholesale_price AS WholesalePrice, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
 			m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
 			Joins("JOIN vendors v ON v.id = m.vendor_id").
 			Joins("JOIN users u ON u.id = v.user_id").
