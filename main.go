@@ -51,6 +51,7 @@ func main() {
 	
 	r.GET("/menus", controllers.GetMenus)
 	r.GET("/menus/:id/details", controllers.GetMenuDetails)
+	r.GET("/vendors/:id/info", controllers.GetVendorInfo)
 	
 	r.POST("/register", controllers.Register)
 	r.POST("/admin/register", controllers.AdminRegister)
