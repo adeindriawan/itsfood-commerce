@@ -23,7 +23,7 @@ func Authorized() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		err := TokenValid(c.Request)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{
+			c.JSON(403, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,

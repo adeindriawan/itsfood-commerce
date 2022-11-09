@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 	"strconv"
-	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/models"
 	"github.com/adeindriawan/itsfood-commerce/services"
@@ -22,7 +21,7 @@ func ForgotPassword(c *gin.Context) {
 	var payload ForgotPasswordPayload
 	var user models.User
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -32,11 +31,11 @@ func ForgotPassword(c *gin.Context) {
 	}
 	query := services.DB.First(&user, "email = ?", payload.Email)
 	if query.Error != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": query.Error.Error(),
 			"result": nil,
-			"description": "Gagal melakukan query.",
+			"description": "Gagal melakukan query pada database.",
 		})
 		return
 	}
@@ -50,18 +49,18 @@ func ForgotPassword(c *gin.Context) {
 	rtx := time.Unix(resetTokenExpires, 0)
 	now := time.Now()
 	if err := services.GetRedis().Set(resetToken, mailTo, rtx.Sub(now)).Err(); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
-			"description": "Gagal menyimpan reset token di sistem.",
+			"description": "Gagal menyimpan reset token pada database.",
 		})
 		return
 	}
 
 	_, errorSendingResetPasswordEmail := services.SendMail(mailTo, mailSubject, mailBody)
 	if errorSendingResetPasswordEmail != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": nil,
 			"result": nil,
@@ -88,7 +87,7 @@ type ResetPasswordPayload struct {
 func ResetPassword(c *gin.Context) {
 	var payload ResetPasswordPayload
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -98,7 +97,7 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	if payload.Password != payload.ConfirmPassword {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Gagal memvalidasi data yang masuk",
 			"result": nil,
@@ -108,11 +107,11 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	if email, err := services.GetRedis().Get(payload.Token).Result(); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
-			"description": "Token tidak ditemukan dalam sistem. Kemungkinan sudah kadaluwarsa.",
+			"description": "Token tidak ditemukan dalam database. Kemungkinan sudah kadaluwarsa.",
 		})
 		return
 	} else if email != payload.Email {
@@ -128,7 +127,7 @@ func ResetPassword(c *gin.Context) {
 	var user models.User
 	findUser := services.DB.First(&user, "email = ?", payload.Email)
 	if findUser.Error != nil {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": findUser.Error.Error(),
 			"result": nil,
@@ -138,9 +137,8 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	hash, errHash := utils.HashPassword(payload.Password)
-	fmt.Println(hash)
 	if errHash != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errHash.Error(),
 			"result": nil,
@@ -149,18 +147,16 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 	user.Password = hash
-	fmt.Println(hash)
 	updatePassword := services.DB.Save(&user)
 	if updatePassword.Error != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": updatePassword.Error.Error(),
 			"result": nil,
-			"description": "Gagal mengubah password dari user ini.",
+			"description": "Gagal mengubah password dari user ini pada database.",
 		})
 		return
 	}
-	fmt.Println(hash)
 	c.JSON(200, gin.H{
 		"status": "success",
 		"errors": nil,
@@ -179,7 +175,7 @@ type AdminRegisterInput struct {
 func AdminRegister(c *gin.Context) {
 	var register AdminRegisterInput
 	if err := c.ShouldBindJSON(&register); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -190,7 +186,7 @@ func AdminRegister(c *gin.Context) {
 
 	hashedPassword, errHashingPassword := utils.HashPassword(register.Password)
 	if errHashingPassword != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errHashingPassword.Error(),
 			"result": nil,
@@ -201,7 +197,7 @@ func AdminRegister(c *gin.Context) {
 
 	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Admin", Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingUser.Error(),
 			"result": nil,
@@ -213,7 +209,7 @@ func AdminRegister(c *gin.Context) {
 	userId := user.ID
 	admin := models.Admin{UserID: userId, Name: register.Name, Email: register.Email, Phone: register.Phone, Status: "Inactive", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingAdmin := services.DB.Create(&admin).Error; errorCreatingAdmin != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingAdmin.Error(),
 			"result": nil,
@@ -222,7 +218,7 @@ func AdminRegister(c *gin.Context) {
 		return
 	}
 	
-	c.JSON(200, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": user,
@@ -242,7 +238,7 @@ type CustomerRegisterInput struct {
 func CustomerRegister(c *gin.Context) {
 	var register CustomerRegisterInput
 	if err := c.ShouldBindJSON(&register); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -253,7 +249,7 @@ func CustomerRegister(c *gin.Context) {
 
 	hashedPassword, errorHashingPassword := utils.HashPassword(register.Password)
 	if errorHashingPassword != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errorHashingPassword.Error(),
 			"result": nil,
@@ -264,7 +260,7 @@ func CustomerRegister(c *gin.Context) {
 
 	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Type: "Customer", Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingUser.Error(),
 			"result": nil,
@@ -276,7 +272,7 @@ func CustomerRegister(c *gin.Context) {
 	userId := user.ID
 	customer := models.Customer{UserID: userId, Type: register.Type, UnitID: register.UnitID, Status: "Registered", CreatedBy: register.Name, UpdatedAt: time.Time{}}
 	if errorCreatingCustomer := services.DB.Create(&customer).Error; errorCreatingCustomer != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingCustomer.Error(),
 			"result": nil,
@@ -285,7 +281,7 @@ func CustomerRegister(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": nil,
@@ -310,7 +306,7 @@ type VendorRegisterInput struct {
 func VendorRegister(c *gin.Context) {
 	var register VendorRegisterInput
 	if err := c.ShouldBindJSON(&register); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -321,7 +317,7 @@ func VendorRegister(c *gin.Context) {
 
 	hashedPassword, errorHashingPassword := utils.HashPassword(register.Password)
 	if errorHashingPassword != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errorHashingPassword.Error(),
 			"result": nil,
@@ -332,7 +328,7 @@ func VendorRegister(c *gin.Context) {
 
 	user := models.User{Name: register.Name, Email: register.Email, Password: hashedPassword, Phone: register.Phone, Status: "Registered", Type: "Vendor", CreatedBy: register.Name, CreatedAt: time.Time{}}
 	if errorCreatingUser := services.DB.Create(&user).Error; errorCreatingUser != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingUser.Error(),
 			"result": nil,
@@ -353,7 +349,7 @@ func VendorRegister(c *gin.Context) {
 		BankAccountName: register.BankAccountName,
 	}
 	if errorCreatingVendor := services.DB.Create(&vendor).Error; errorCreatingVendor != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingVendor.Error(),
 			"result": nil,
@@ -366,7 +362,7 @@ func VendorRegister(c *gin.Context) {
 		"vendor": vendor,
 	}
 
-	c.JSON(200, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": data,
@@ -382,14 +378,14 @@ type UserRegisterInput struct {
 func Register(c *gin.Context) {
 	var register UserRegisterInput
 	if err := c.ShouldBindJSON(&register); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
 	user := models.User{Email: register.Email, Password: register.Password}
 	services.DB.Create(&user)
 
-	c.JSON(http.StatusOK, gin.H{"message": register})
+	c.JSON(200, gin.H{"message": register})
 }
 
 type UserLoginInput struct {
@@ -402,7 +398,7 @@ func CustomerLogin(c *gin.Context) {
 	var login UserLoginInput
 
 	if err := c.ShouldBindJSON(&login); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -412,7 +408,7 @@ func CustomerLogin(c *gin.Context) {
 	}
 
 	if err := services.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
-		c.JSON(401, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -420,7 +416,7 @@ func CustomerLogin(c *gin.Context) {
 		})
 		return
 	} else if user.Email != login.Email || !utils.CheckPasswordHash(login.Password, user.Password) {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Gagal mengautentikasi.",
 			"result": nil,
@@ -439,7 +435,7 @@ func CustomerLogin(c *gin.Context) {
 		}
 		var customer models.Customer
 		if err := services.DB.Preload("User").Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
-			c.JSON(401, gin.H{
+			c.JSON(404, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -449,17 +445,17 @@ func CustomerLogin(c *gin.Context) {
 		}
 		ts, err := utils.CreateToken(user.ID)
 		if err != nil {
-			c.JSON(422, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
-				"description": "Tidak dapat membuat token untuk proses autentikasi.",
+				"description": "Gagal membuat token untuk proses autentikasi.",
 			})
 			return
 		}
 		saveErr := utils.CreateAuth(user.ID, ts)
 		if saveErr != nil {
-			c.JSON(422, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": saveErr.Error(),
 				"result": nil,
@@ -471,7 +467,7 @@ func CustomerLogin(c *gin.Context) {
 			"token": ts,
 			"customer": customer,
 		}
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(200, gin.H{
 			"status": "success",
 			"errors": nil,
 			"result": data,
@@ -485,7 +481,7 @@ func AdminLogin(c *gin.Context) {
 	var login UserLoginInput
 
 	if err := c.ShouldBindJSON(&login); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -495,7 +491,7 @@ func AdminLogin(c *gin.Context) {
 	}
 
 	if err := services.DB.Where("email = ?", login.Email).First(&user).Error; err != nil {
-		c.JSON(401, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -503,7 +499,7 @@ func AdminLogin(c *gin.Context) {
 		})
 		return
 	} else if user.Email != login.Email || !utils.CheckPasswordHash(login.Password, user.Password) {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Gagal mengautentikasi.",
 			"result": nil,
@@ -512,7 +508,7 @@ func AdminLogin(c *gin.Context) {
 		return
 	} else {
 		if user.Type != "Admin" {
-			c.JSON(401, gin.H{
+			c.JSON(422, gin.H{
 				"status": "failed",
 				"errors": "Not admin",
 				"result": nil,
@@ -522,7 +518,7 @@ func AdminLogin(c *gin.Context) {
 		}
 		var admin models.Admin
 		if err := services.DB.Preload("User").Where("user_id = ?", user.ID).First(&admin).Error; err != nil {
-			c.JSON(401, gin.H{
+			c.JSON(404, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -532,7 +528,7 @@ func AdminLogin(c *gin.Context) {
 		}
 		ts, err := utils.CreateToken(user.ID)
 		if err != nil {
-			c.JSON(422, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -542,7 +538,7 @@ func AdminLogin(c *gin.Context) {
 		}
 		saveErr := utils.CreateAuth(user.ID, ts)
 		if saveErr != nil {
-			c.JSON(422, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": saveErr.Error(),
 				"result": nil,
@@ -554,7 +550,7 @@ func AdminLogin(c *gin.Context) {
 			"token": ts,
 			"admin": admin,
 		}
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(200, gin.H{
 			"status": "success",
 			"errors": nil,
 			"result": data,
@@ -571,7 +567,7 @@ type Todo struct {
 func CreateTodo(c *gin.Context) {
 	var td *Todo
 	if err := c.ShouldBindJSON(&td); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -581,7 +577,7 @@ func CreateTodo(c *gin.Context) {
 	}
 	tokenAuth, err := utils.ExtractTokenMetadata(c.Request)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(401, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -591,7 +587,7 @@ func CreateTodo(c *gin.Context) {
 	}
 	userId, err := utils.FetchAuth(tokenAuth)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -603,7 +599,7 @@ func CreateTodo(c *gin.Context) {
 
 	// you can proceed to save the Todo to a database
 	// but we will just return it to the caller here
-	c.JSON(http.StatusCreated, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": td,
@@ -622,7 +618,7 @@ func DeleteAuth(givenUuid string) (int64, error) {
 func Logout(c *gin.Context) {
 	au, err := utils.ExtractTokenMetadata(c.Request)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -633,7 +629,7 @@ func Logout(c *gin.Context) {
 	
 	_, errorFetchingAuth := utils.FetchAuth(au)
 	if errorFetchingAuth != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -647,7 +643,7 @@ func Logout(c *gin.Context) {
 		customerId := strconv.Itoa(int(customerContext.ID))
 		errDestroy := DestroyCustomerCart(customerId)
 		if errDestroy != nil {
-			c.JSON(400, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": errDestroy.Error(),
 				"result": nil,
@@ -659,7 +655,7 @@ func Logout(c *gin.Context) {
 
 	deleted, delErr := DeleteAuth(au.AccessUuid)
 	if delErr != nil || deleted == 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": "Tidak ada token user yang terhapus: " + delErr.Error(),
 			"result": nil,
@@ -667,7 +663,7 @@ func Logout(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(200, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": nil,
@@ -678,7 +674,7 @@ func Logout(c *gin.Context) {
 func Refresh(c *gin.Context) {
 	mapToken := map[string]string{}
 	if err := c.ShouldBindJSON(&mapToken); err != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -697,7 +693,7 @@ func Refresh(c *gin.Context) {
 	})
 	// If there is an error, the token must have expired
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(403, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -707,7 +703,7 @@ func Refresh(c *gin.Context) {
 	}
 	// Is the token valid?
 	if _, ok := token.Claims.(jwt.Claims); !ok && !token.Valid {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -720,7 +716,7 @@ func Refresh(c *gin.Context) {
 	if ok && token.Valid {
 		refreshUuid, ok := claims["refresh_uuid"].(string) // convert the interface to string
 		if !ok {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -730,7 +726,7 @@ func Refresh(c *gin.Context) {
 		}
 		userId, err := strconv.ParseUint(fmt.Sprintf("%.f", claims["user_id"]), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -741,7 +737,7 @@ func Refresh(c *gin.Context) {
 		// Delete the previous refresh token
 		deleted, delErr := DeleteAuth(refreshUuid)
 		if delErr != nil || deleted == 0 {
-			c.JSON(http.StatusUnauthorized, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": delErr.Error(),
 				"result": nil,
@@ -752,7 +748,7 @@ func Refresh(c *gin.Context) {
 		// Create new pairs of refresh and access token
 		ts, createErr := utils.CreateToken(userId)
 		if createErr != nil {
-			c.JSON(http.StatusForbidden, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": createErr.Error(),
 				"result": nil,
@@ -763,11 +759,11 @@ func Refresh(c *gin.Context) {
 		// Save the token metadata to Redis
 		saveErr := utils.CreateAuth(userId, ts)
 		if saveErr != nil {
-			c.JSON(http.StatusForbidden, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": saveErr.Error(),
 				"result": nil,
-				"description": "Gagal menyimpan metadata token ke Redis.",
+				"description": "Gagal menyimpan metadata token ke database.",
 			})
 			return
 		}
@@ -775,14 +771,14 @@ func Refresh(c *gin.Context) {
 			"access_token": ts.AccessToken,
 			"refresh_token": ts.RefreshToken,
 		}
-		c.JSON(http.StatusCreated, gin.H{
+		c.JSON(201, gin.H{
 			"status": "success",
 			"errors": nil,
 			"result": tokens,
 			"description": "Berhasil memperbarui access & refresh token.",
 		})
 	} else {
-		c.JSON(http.StatusUnauthorized, gin.H{
+		c.JSON(403, gin.H{
 			"status": "failed",
 			"errors": "Refresh expired",
 			"result": nil,

@@ -9,7 +9,7 @@ func AuthorizedActiveCustomer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		u := c.MustGet("user").(models.User)
 		if u.Status != "Activated" {
-			c.JSON(403, gin.H{
+			c.JSON(422, gin.H{
 				"status": "failed",
 				"errors": "User sedang berstatus tidak aktif.",
 				"result": nil,
@@ -21,7 +21,7 @@ func AuthorizedActiveCustomer() gin.HandlerFunc {
 
 		cust := c.MustGet("customer").(models.Customer)
 		if cust.Status != "Activated" {
-			c.JSON(403, gin.H{
+			c.JSON(422, gin.H{
 				"status": "failed",
 				"errors": "Customer sedang berstatus tidak aktif.",
 				"result": nil,

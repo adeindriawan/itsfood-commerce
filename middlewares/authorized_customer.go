@@ -33,7 +33,7 @@ func AuthorizedCustomer() gin.HandlerFunc {
 		}
 
 		if user.Type != "Customer" {
-			c.JSON(403, gin.H{
+			c.JSON(422, gin.H{
 				"status": "failed",
 				"errors": "User bukan merupakan Customer.",
 				"result": nil,
@@ -44,7 +44,7 @@ func AuthorizedCustomer() gin.HandlerFunc {
 		} else {
 			var customer models.Customer
 			if err := services.DB.Where("user_id = ?", userId).First(&customer).Error; err != nil {
-				c.JSON(400, gin.H{
+				c.JSON(404, gin.H{
 					"status": "failed",
 					"errors": err.Error(),
 					"result": userId,
