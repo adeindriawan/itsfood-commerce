@@ -30,21 +30,21 @@ func main() {
 		authorized.POST("/todo", controllers.CreateTodo)
 		authorized.POST("/logout", controllers.Logout)
 
-		authorizedUser := authorized.Group("/")
-		authorizedUser.Use(middlewares.AuthorizedCustomer())
+		authorizedCustomer := authorized.Group("/")
+		authorizedCustomer.Use(middlewares.AuthorizedCustomer())
 		{
-			authorizedUser.POST("/cart", controllers.AddToCart)
-			authorizedUser.GET("/cart", controllers.ViewCart)
-			authorizedUser.PATCH("/cart", controllers.UpdateCart)
-			authorizedUser.DELETE("/cart", controllers.DeleteCart)
-			authorizedUser.GET("/cart/total", controllers.CartTotals)
-			authorizedUser.DELETE("/cart/destroy", controllers.DestroyCart)
-			authorizedUser.GET("/orders/:id/details", controllers.OrderDetails)
+			authorizedCustomer.POST("/cart", controllers.AddToCart)
+			authorizedCustomer.GET("/cart", controllers.ViewCart)
+			authorizedCustomer.PATCH("/cart", controllers.UpdateCart)
+			authorizedCustomer.DELETE("/cart", controllers.DeleteCart)
+			authorizedCustomer.GET("/cart/total", controllers.CartTotals)
+			authorizedCustomer.DELETE("/cart/destroy", controllers.DestroyCart)
+			authorizedCustomer.GET("/orders/:id/details", controllers.OrderDetails)
 
-			authorizedActiveUser := authorizedUser.Group("/")
-			authorizedActiveUser.Use(middlewares.AuthorizedActiveUser())
+			authorizedActiveCustomer := authorizedCustomer.Group("/")
+			authorizedActiveCustomer.Use(middlewares.AuthorizedActiveCustomer())
 			{
-				authorizedActiveUser.POST("/orders", controllers.CreateOrder)
+				authorizedActiveCustomer.POST("/orders", controllers.CreateOrder)
 			}
 		}
 	}

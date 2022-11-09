@@ -5,7 +5,7 @@ import (
 	"github.com/adeindriawan/itsfood-commerce/models"
 )
 
-func AuthorizedActiveUser() gin.HandlerFunc {
+func AuthorizedActiveCustomer() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		u := c.MustGet("user").(models.User)
 		if u.Status != "Activated" {
