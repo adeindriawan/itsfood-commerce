@@ -50,7 +50,7 @@ func CreateOrder(c *gin.Context) {
 	var order OrderPayload
 	var errors = []string{}
 	if err := c.ShouldBindJSON(&order); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -64,7 +64,7 @@ func CreateOrder(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cartContent, errCartContent := GetCustomerCartContent(customerId)
 	if errCartContent != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errCartContent.Error(),
 			"result": nil,
@@ -75,7 +75,7 @@ func CreateOrder(c *gin.Context) {
 	// check apakah cart customer tersebut berisi setidaknya 1 item
 	totalItems := GetCustomerCartItems(cartContent)
 	if totalItems == 0 {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": nil,
 			"result": nil,
@@ -86,7 +86,7 @@ func CreateOrder(c *gin.Context) {
 	
 	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
 	if errConvertingOrderedFor != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": errConvertingOrderedFor.Error(),
 			"result": nil,
@@ -96,7 +96,7 @@ func CreateOrder(c *gin.Context) {
 	}
 	isPreOrderValidated, minDeliveryTime := _menuPreOrderValidated(cartContent, orderedFor)
 	if !isPreOrderValidated {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Order time ahead of the minimum delivery time.",
 			"result": map[string]interface{}{
@@ -129,11 +129,11 @@ func CreateOrder(c *gin.Context) {
 	creatingOrder := services.DB.Create(&newOrder)
 	errorCreatingOrder := creatingOrder.Error
 	if errorCreatingOrder != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errorCreatingOrder.Error(),
 			"result": order,
-			"description": "Gagal membuat menyimpan order baru.",
+			"description": "Gagal membuat menyimpan order baru ke dalam database.",
 		})
 		return
 	}
@@ -142,11 +142,11 @@ func CreateOrder(c *gin.Context) {
 	getOrderData := services.DB.Preload("Customer.User").Preload("Customer.Unit").Find(&orderModel, newOrderID)
 	errorGettingOrderData := getOrderData.Error
 	if errorGettingOrderData != nil {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": errorGettingOrderData.Error(),
 			"result": nil,
-			"description": "Gagal mengambil data order.",
+			"description": "Gagal mengambil data order yang baru disimpan.",
 		})
 		return
 	}
@@ -158,6 +158,7 @@ func CreateOrder(c *gin.Context) {
 			Qty: v.Qty,
 			Price: v.Price,
 			COGS: v.COGS,
+			Note: v.Note,
 			Status: "Ordered",
 			CreatedAt: time.Now(),
 			CreatedBy: userContext.Name,
@@ -165,7 +166,7 @@ func CreateOrder(c *gin.Context) {
 		creatingOrderDetails := services.DB.Create(&newOrderDetails)
 		errorCreatingOrderDetails := creatingOrderDetails.Error
 		if errorCreatingOrderDetails != nil {
-			c.JSON(400, gin.H{
+			c.JSON(512, gin.H{
 				"status": "failed",
 				"errors": errorCreatingOrderDetails.Error(),
 				"result": v,
@@ -190,7 +191,7 @@ func CreateOrder(c *gin.Context) {
 		errors = append(errors, "Gagal mengirim notifikasi email order baru ke admin.")
 	}
 
-	c.JSON(200, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
 			"order": orderModel,

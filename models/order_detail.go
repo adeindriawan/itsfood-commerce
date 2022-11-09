@@ -13,6 +13,7 @@ type OrderDetail struct {
 	Qty uint 						`gorm:"column:qty;not null" json:"qty"`
 	Price uint64 				`gorm:"column:price;not null" json:"price"`
 	COGS uint64 				`gorm:"column:cogs;not null" json:"cogs"`
+	Note string					`gorm:"column:note" json:"note"`
 	Status string 			`gorm:"column:status;not null" json:"status"`
 	CreatedAt time.Time `gorm:"column:created_at;not null" json:"created_at"`
 	UpdatedAt time.Time	`gorm:"column:updated_at" json:"updated_at"`

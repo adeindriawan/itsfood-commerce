@@ -24,6 +24,7 @@ type Cart struct {
 	MaxOrderQty uint		`json:"max_order_qty"`
 	PreOrderHours uint	`json:"pre_order_hours"`
 	PreOrderDays uint 	`json:"pre_order_days"`
+	Note string 				`json:"note"`
 }
 
 func GetCustomerCartContent(customerId string) ([]Cart, error) {
@@ -87,7 +88,7 @@ func AddToCart(c *gin.Context) {
 	var cart Cart
 	var cartContent []Cart
 	if err := c.ShouldBindJSON(&cart); err != nil {
-		c.JSON(423, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -98,7 +99,7 @@ func AddToCart(c *gin.Context) {
 
 	_, err := utils.AuthCheck(c)
 	if err != nil {
-		c.JSON(401, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -109,7 +110,7 @@ func AddToCart(c *gin.Context) {
 	customerContext := c.MustGet("customer").(models.Customer)
 
 	if !_menuMinOrderQtyValidated(cart.Qty, cart.MinOrderQty) {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Menu min order qty failed to be validated.",
 			"result": nil,
@@ -120,7 +121,7 @@ func AddToCart(c *gin.Context) {
 	}
 
 	if cart.MaxOrderQty != 0 && !_menuMaxOrderQtyValidated(cart.Qty, cart.MaxOrderQty) {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": "Menu max order qty failed to be validated.",
 			"result": nil,
@@ -137,7 +138,7 @@ func AddToCart(c *gin.Context) {
 		cartContent = append(cartContent, cart)
 		json, err := json.Marshal(cartContent)
 		if err != nil {
-			c.JSON(400, gin.H{
+			c.JSON(500, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
 				"result": nil,
@@ -160,7 +161,7 @@ func AddToCart(c *gin.Context) {
 		if menuCheck {
 			json, err := json.Marshal(cartContent)
 			if err != nil {
-				c.JSON(400, gin.H{
+				c.JSON(500, gin.H{
 					"status": "failed",
 					"errors": err.Error(),
 					"result": nil,
@@ -170,7 +171,7 @@ func AddToCart(c *gin.Context) {
 			}
 			errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 			if errSave != nil {
-				c.JSON(400, gin.H{
+				c.JSON(512, gin.H{
 					"status": "failed",
 					"errors": errSave.Error(),
 					"result": nil,
@@ -193,7 +194,7 @@ func AddToCart(c *gin.Context) {
 			}
 			errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 			if errSave != nil {
-				c.JSON(400, gin.H{
+				c.JSON(512, gin.H{
 					"status": "failed",
 					"errors": errSave.Error(),
 					"result": nil,
@@ -204,7 +205,7 @@ func AddToCart(c *gin.Context) {
 		}
 	}
 	
-	c.JSON(200, gin.H{
+	c.JSON(201, gin.H{
 		"status": "success",
 		"errors": nil,
 		"result": cart,
@@ -227,7 +228,7 @@ func ViewCart(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cart, err := GetCustomerCartContent(customerId)
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -247,7 +248,7 @@ func ViewCart(c *gin.Context) {
 func UpdateCart(c *gin.Context) {
 	var cart Cart
 	if err := c.ShouldBindJSON(&cart); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -271,7 +272,7 @@ func UpdateCart(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cartContent, err := GetCustomerCartContent(customerId)
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -282,7 +283,7 @@ func UpdateCart(c *gin.Context) {
 	for i, search := range cartContent {
 		if cart.ID == search.ID {
 			if !_menuMinOrderQtyValidated(cart.Qty, search.MinOrderQty) {
-				c.JSON(400, gin.H{
+				c.JSON(422, gin.H{
 					"status": "failed",
 					"errors": "Menu min order qty failed to be validated.",
 					"result": nil,
@@ -290,7 +291,7 @@ func UpdateCart(c *gin.Context) {
 				})
 				return
 			} else if !_menuMaxOrderQtyValidated(cart.Qty, search.MaxOrderQty) {
-				c.JSON(400, gin.H{
+				c.JSON(422, gin.H{
 					"status": "failed",
 					"errors": "Menu max order qty failed to be validated.",
 					"result": nil,
@@ -304,7 +305,7 @@ func UpdateCart(c *gin.Context) {
 	}
 	json, err := json.Marshal(cartContent)
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -314,7 +315,7 @@ func UpdateCart(c *gin.Context) {
 	}
 	errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 	if errSave != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errSave.Error(),
 			"result": nil,
@@ -333,7 +334,7 @@ func UpdateCart(c *gin.Context) {
 func DeleteCart(c *gin.Context) {
 	var cart Cart
 	if err := c.ShouldBindJSON(&cart); err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -356,7 +357,7 @@ func DeleteCart(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cartContent, err := GetCustomerCartContent(customerId)
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -374,7 +375,7 @@ func DeleteCart(c *gin.Context) {
 	newCartContent := cartContent[:len(cartContent) - 1]
 	json, err := json.Marshal(newCartContent)
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -384,7 +385,7 @@ func DeleteCart(c *gin.Context) {
 	}
 	errSave := services.GetRedis().Set("cart" + customerId, json, 0).Err()
 	if errSave != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errSave.Error(),
 			"result": nil,
@@ -416,7 +417,7 @@ func CartTotals(c *gin.Context) {
 	cartContent, err := GetCustomerCartContent(customerId)
 	
 	if err != nil {
-		c.JSON(400, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
@@ -464,7 +465,7 @@ func DestroyCart(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	errDestroy := DestroyCustomerCart(customerId)
 	if errDestroy != nil {
-		c.JSON(400, gin.H{
+		c.JSON(512, gin.H{
 			"status": "failed",
 			"errors": errDestroy.Error(),
 			"result": nil,
