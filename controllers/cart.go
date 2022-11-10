@@ -228,7 +228,7 @@ func ViewCart(c *gin.Context) {
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cart, err := GetCustomerCartContent(customerId)
 	if err != nil {
-		c.JSON(500, gin.H{
+		c.JSON(404, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
