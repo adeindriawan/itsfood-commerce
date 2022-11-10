@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"time"
 	"strconv"
 	"github.com/gin-gonic/gin"
@@ -59,7 +58,6 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
-	userContext := c.MustGet("user").(models.User)
 	customerContext := c.MustGet("customer").(models.Customer)
 	customerId := strconv.Itoa(int(customerContext.ID))
 	cartContent, errCartContent := GetCustomerCartContent(customerId)
@@ -122,7 +120,7 @@ func CreateOrder(c *gin.Context) {
 		Info: order.Info,
 		Status: "Created",
 		CreatedAt: time.Now(),
-		CreatedBy: userContext.Name,
+		CreatedBy: customerContext.User.Name,
 	}
 
 	// Tambahkan record ke tabel orders dan order details
@@ -138,18 +136,6 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	newOrderID := newOrder.ID
-	var orderModel models.Order
-	getOrderData := services.DB.Preload("Customer.User").Preload("Customer.Unit").Find(&orderModel, newOrderID)
-	errorGettingOrderData := getOrderData.Error
-	if errorGettingOrderData != nil {
-		c.JSON(404, gin.H{
-			"status": "failed",
-			"errors": errorGettingOrderData.Error(),
-			"result": nil,
-			"description": "Gagal mengambil data order yang baru disimpan.",
-		})
-		return
-	}
 
 	for _, v := range cartContent {
 		newOrderDetails := models.OrderDetail{
@@ -161,7 +147,7 @@ func CreateOrder(c *gin.Context) {
 			Note: v.Note,
 			Status: "Ordered",
 			CreatedAt: time.Now(),
-			CreatedBy: userContext.Name,
+			CreatedBy: customerContext.User.Name,
 		}
 		creatingOrderDetails := services.DB.Create(&newOrderDetails)
 		errorCreatingOrderDetails := creatingOrderDetails.Error
@@ -181,12 +167,12 @@ func CreateOrder(c *gin.Context) {
 	// apakah ada menu yang vendornya memiliki default delivery cost/service charge, jika ya, tambahkan record ke costs
 	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut
 
-	_, errorSendingTelegram := _sendTelegramToGroup(orderModel)
+	_, errorSendingTelegram := _sendTelegramToGroup(newOrder, customerContext)
 	if errorSendingTelegram != nil {
 		errors = append(errors, "Gagal mengirim notifikasi telegram order baru ke grup.")
 	}
 	
-	_, errorSendingNewOrderEmail := _sendEmailToAdmins(orderModel, cartContent)
+	_, errorSendingNewOrderEmail := _sendEmailToAdmins(newOrder, customerContext, cartContent)
 	if errorSendingNewOrderEmail != nil {
 		errors = append(errors, "Gagal mengirim notifikasi email order baru ke admin.")
 	}
@@ -194,22 +180,23 @@ func CreateOrder(c *gin.Context) {
 	c.JSON(201, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
-			"order": orderModel,
+			"order": newOrder,
+			"customer": customerContext,
 		},
 		"errors": errors,
 		"description": "Berhasil membuat order baru.",
 	})
 }
 
-func _sendTelegramToGroup(orderModel models.Order) (bool, error) {
+func _sendTelegramToGroup(newOrder models.Order, customerContext models.Customer) (bool, error) {
 	telegramMessage := "Ada order baru nomor #"
-	orderId := strconv.Itoa(int(orderModel.ID))
-	orderedForYear := strconv.Itoa(orderModel.OrderedFor.Year())
-	orderedForMonth := orderModel.OrderedFor.Month().String()
-	orderedForDay := strconv.Itoa(orderModel.OrderedFor.Day())
-	orderedForHour := strconv.Itoa(orderModel.OrderedFor.Hour())
-	orderedForMinute := strconv.Itoa(orderModel.OrderedFor.Minute())
-	telegramMessage += orderId + " dari " + orderModel.Customer.User.Name + " di " + orderModel.Customer.Unit.Name
+	orderId := strconv.Itoa(int(newOrder.ID))
+	orderedForYear := strconv.Itoa(newOrder.OrderedFor.Year())
+	orderedForMonth := newOrder.OrderedFor.Month().String()
+	orderedForDay := strconv.Itoa(newOrder.OrderedFor.Day())
+	orderedForHour := strconv.Itoa(newOrder.OrderedFor.Hour())
+	orderedForMinute := strconv.Itoa(newOrder.OrderedFor.Minute())
+	telegramMessage += orderId + " dari " + customerContext.User.Name + " di " + customerContext.Unit.Name
 	telegramMessage += " untuk diantar pada " + orderedForDay + " " + orderedForMonth + " " + orderedForYear
 	telegramMessage += " " + orderedForHour + ":" + orderedForMinute
 	telegramMessage += ", klik <a href='https://itsfood.id/publics/view-order/" + orderId + "'> di sini</a> untuk detail."
@@ -222,7 +209,7 @@ func _sendTelegramToGroup(orderModel models.Order) (bool, error) {
 	return true, nil
 }
 
-func _sendEmailToAdmins(orderModel models.Order, cartContent []Cart) (bool, error) {
+func _sendEmailToAdmins(newOrder models.Order, customerContext models.Customer, cartContent []Cart) (bool, error) {
 	var admins []models.Admin
 	query := services.DB.Preload("User").Find(&admins)
 	queryError := query.Error
@@ -231,34 +218,33 @@ func _sendEmailToAdmins(orderModel models.Order, cartContent []Cart) (bool, erro
 	}
 
 	for _, v := range admins {
-		emailBody := _newOrderEmailBody(orderModel, cartContent, v.ID)
+		emailBody := _newOrderEmailBody(newOrder, customerContext, cartContent, v.ID)
 		services.SendMail(v.Email, "[Itsfood] Pesanan Baru", emailBody)
-		fmt.Println(v.Email)
 	}
 
 	return true, nil
 }
 
-func _newOrderEmailBody(orderModel models.Order, cartContent []Cart, adminID uint64) string {
+func _newOrderEmailBody(newOrder models.Order, customerContext models.Customer, cartContent []Cart, adminID uint64) string {
 	adminId := strconv.Itoa(int(adminID))
-	orderId := strconv.Itoa(int(orderModel.ID))
-	orderedForYear := strconv.Itoa(orderModel.OrderedFor.Year())
-	orderedForMonth := orderModel.OrderedFor.Month().String()
-	orderedForDay := strconv.Itoa(orderModel.OrderedFor.Day())
-	orderedForHour := strconv.Itoa(orderModel.OrderedFor.Hour())
-	orderedForMinute := strconv.Itoa(orderModel.OrderedFor.Minute())
+	orderId := strconv.Itoa(int(newOrder.ID))
+	orderedForYear := strconv.Itoa(newOrder.OrderedFor.Year())
+	orderedForMonth := newOrder.OrderedFor.Month().String()
+	orderedForDay := strconv.Itoa(newOrder.OrderedFor.Day())
+	orderedForHour := strconv.Itoa(newOrder.OrderedFor.Hour())
+	orderedForMinute := strconv.Itoa(newOrder.OrderedFor.Minute())
 	customerCartAmount := strconv.Itoa(int(GetCustomerCartAmount(cartContent)))
 	cartDetails := _cartDetailsForEmail(cartContent)
 	emailMessage := "Dear admin Itsfood,<br><br><br>"
-	emailMessage += "Ada order baru dengan ID #" + orderId + " dari " + orderModel.Customer.User.Name + " di " + orderModel.Customer.Unit.Name
+	emailMessage += "Ada order baru dengan ID #" + orderId + " dari " + customerContext.User.Name + " di " + customerContext.Unit.Name
 	emailMessage += " dengan rincian sebagai berikut:<br>"
 	emailMessage += cartDetails + "<br>"
 	emailMessage += "Total penjualan: Rp" + customerCartAmount + "<br>"
 	emailMessage += "Diantar pada: " + orderedForDay + " " + orderedForMonth + " " + orderedForYear + " " + orderedForHour + ":" + orderedForMinute + "<br>"
-	emailMessage += "Tujuan: " + orderModel.OrderedTo + "<br>"
-	emailMessage += "Untuk keperluan: " + orderModel.Purpose + "<br>"
-	emailMessage += "Informasi tambahan: " + orderModel.Info + "<br>"
-	emailMessage += "Kontak pembeli: " + orderModel.Customer.User.Phone + "<br>"
+	emailMessage += "Tujuan: " + newOrder.OrderedTo + "<br>"
+	emailMessage += "Untuk keperluan: " + newOrder.Purpose + "<br>"
+	emailMessage += "Informasi tambahan: " + newOrder.Info + "<br>"
+	emailMessage += "Kontak pembeli: " + customerContext.User.Phone + "<br>"
 	emailMessage += "Silakan klik link di bawah ini untuk memproses:<br>"
 	emailMessage += "<a style='font-size:14px; font-weight:bold; text-decoration:none; line-height:40px; width:100%; display:inline-block;' href='https://itsfood.id/publics/proceed-order/"+ orderId +"/" + adminId +"'><span style='color:#000091'>Proses Pesanan Ini</span></a>"
 

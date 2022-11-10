@@ -20,30 +20,9 @@ func AuthorizedCustomer() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		var user models.User
-		if err := services.DB.Where("id = ?", userId).First(&user).Error; err != nil {
-			c.JSON(400, gin.H{
-				"status": "failed",
-				"errors": err.Error(),
-				"result": userId,
-				"description": "Gagal mengambil data user dengan ID yang dimaksud.",
-			})
-			c.Abort()
-			return
-		}
-
-		if user.Type != "Customer" {
-			c.JSON(422, gin.H{
-				"status": "failed",
-				"errors": "User bukan merupakan Customer.",
-				"result": nil,
-				"description": "Tidak dapat melanjutkan request karena User bukan merupakan Customer.",
-			})
-			c.Abort()
-			return
-		} else {
-			var customer models.Customer
-			if err := services.DB.Where("user_id = ?", userId).First(&customer).Error; err != nil {
+		
+		var customer models.Customer
+			if err := services.DB.Preload("Unit").Preload("User").Where("user_id = ?", userId).First(&customer).Error; err != nil {
 				c.JSON(404, gin.H{
 					"status": "failed",
 					"errors": err.Error(),
@@ -53,9 +32,7 @@ func AuthorizedCustomer() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			c.Set("user", user) // add user object to the context so it can be brought to next middleware
 			c.Set("customer", customer) // add customer object to the context so it can be brought to next middleware
 			c.Next()
-		}
 	}
 }

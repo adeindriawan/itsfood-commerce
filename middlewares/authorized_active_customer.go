@@ -7,23 +7,11 @@ import (
 
 func AuthorizedActiveCustomer() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		u := c.MustGet("user").(models.User)
-		if u.Status != "Activated" {
-			c.JSON(422, gin.H{
-				"status": "failed",
-				"errors": "User sedang berstatus tidak aktif.",
-				"result": nil,
-				"description": "Tidak dapat melanjutkan request karena User berstatus tidak aktif.",
-			})
-			c.Abort()
-			return
-		}
-
 		cust := c.MustGet("customer").(models.Customer)
-		if cust.Status != "Activated" {
+		if cust.Status != "Activated" || cust.User.Status != "Activated" {
 			c.JSON(422, gin.H{
 				"status": "failed",
-				"errors": "Customer sedang berstatus tidak aktif.",
+				"errors": "Customer/user sedang berstatus tidak aktif.",
 				"result": nil,
 				"description": "Tidak dapat melanjutkan request karena Customer berstatus tidak aktif.",
 			})
