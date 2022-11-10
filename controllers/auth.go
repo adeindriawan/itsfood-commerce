@@ -434,7 +434,7 @@ func CustomerLogin(c *gin.Context) {
 			return
 		}
 		var customer models.Customer
-		if err := services.DB.Preload("User").Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
+		if err := services.DB.Preload("User").Preload("Unit").Where("user_id = ?", user.ID).First(&customer).Error; err != nil {
 			c.JSON(404, gin.H{
 				"status": "failed",
 				"errors": err.Error(),
@@ -465,6 +465,7 @@ func CustomerLogin(c *gin.Context) {
 		}
 		data := map[string]interface{}{
 			"token": ts,
+			"user": user,
 			"customer": customer,
 		}
 		c.JSON(200, gin.H{
