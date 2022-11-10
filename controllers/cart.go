@@ -81,6 +81,9 @@ func _menuMinOrderQtyValidated(menuQty uint, menuMinOrderQty uint) bool {
 }
 
 func _menuMaxOrderQtyValidated(menuQty uint, menuMaxOrderQty uint) bool {
+	if menuMaxOrderQty == 0 {
+		return true
+	}
 	return menuQty <= menuMaxOrderQty
 }
 
