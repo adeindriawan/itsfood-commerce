@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/utils"
 )
 
 type OrderPayload struct {
@@ -48,6 +49,10 @@ func _menuPreOrderValidated(cartContent []Cart, orderedFor time.Time) (bool, tim
 func CreateOrder(c *gin.Context) {
 	var order OrderPayload
 	var errors = []string{}
+	const itsmineVendorId int = 112
+	var itsmineData []map[string]int
+	itsmineOrder := make(map[string]int)
+
 	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(422, gin.H{
 			"status": "failed",
@@ -136,6 +141,11 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	newOrderID := newOrder.ID
+	year, month, day := newOrder.OrderedFor.Date()
+	orderedForYear := strconv.Itoa(year)
+	orderedForMonth := strconv.Itoa(int(month))
+	orderedForDay := strconv.Itoa(day)
+	orderedForDate := orderedForYear + "-" + orderedForMonth + "-" + orderedForDay
 
 	for _, v := range cartContent {
 		newOrderDetails := models.OrderDetail{
@@ -160,6 +170,39 @@ func CreateOrder(c *gin.Context) {
 			})
 			return
 		}
+
+		if int(v.VendorID) == itsmineVendorId {
+			itsmineOrder["id"] = int(newOrderDetails.ID)
+			itsmineOrder["qty"] = int(v.Qty)
+			itsmineOrder["product_id"] = int(v.MenuID)
+
+			itsmineData = append(itsmineData, itsmineOrder)
+		}
+	}
+	orderParam := map[string]interface{}{
+		"id": newOrderID,
+		"ordered_to": newOrder.OrderedTo,
+		"ordered_for": orderedForDate,
+		"info": newOrder.Info,
+	}
+	customerParam := map[string]interface{}{
+		"id": customerContext.ID,
+		"name": customerContext.User.Name,
+		"phone": customerContext.User.Phone,
+		"unit_id": customerContext.Unit.ID,
+		"unit_name": customerContext.Unit.Name,
+	}
+	params := map[string]interface{}{
+		"order": orderParam,
+		"customer": customerParam,
+		"items": itsmineData,
+	}
+
+	if len(itsmineData) > 0 {
+		_, errorSendingItsmineOrder := utils.AddItsmineOrder(params)
+		if errorSendingItsmineOrder != nil {
+			errors = append(errors, errorSendingItsmineOrder.Error())
+		}
 	}
 	DestroyCustomerCart(customerId)
 
@@ -177,11 +220,25 @@ func CreateOrder(c *gin.Context) {
 		errors = append(errors, "Gagal mengirim notifikasi email order baru ke admin.")
 	}
 
+	response := map[string]interface{}{
+		"id": newOrder.ID,
+		"ordered_by": customerContext,
+		"ordered_for": newOrder.OrderedFor,
+		"ordered_to": newOrder.OrderedTo,
+		"num_of_menus": newOrder.NumOfMenus,
+		"qty_of_menus": newOrder.QtyOfMenus,
+		"amount": newOrder.Amount,
+		"purpose": newOrder.Purpose,
+		"activity": newOrder.Activity,
+		"source_of_fund": newOrder.SourceOfFund,
+		"payment_option": newOrder.PaymentOption,
+		"info": newOrder.Info,
+	}
+
 	c.JSON(201, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
-			"order": newOrder,
-			"customer": customerContext,
+			"order": response,
 		},
 		"errors": errors,
 		"description": "Berhasil membuat order baru.",
