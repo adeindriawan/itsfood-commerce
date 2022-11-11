@@ -15,7 +15,7 @@ type Order struct {
 	Amount uint64 				`gorm:"column:amount;not null" json:"amount"`
 	Purpose string 				`gorm:"column:purpose;not null" json:"purpose"`
 	Activity string 			`gorm:"column:activity;not null" json:"activity"`
-	SourceOfFund string		`gorm:"column:source_of_fund;not null" json:"source_fund"`
+	SourceOfFund string		`gorm:"column:source_of_fund;not null" json:"source_of_fund"`
 	PaymentOption string	`gorm:"column:payment_option;not null" json:"payment_option"`
 	Info string	 					`gorm:"info;not null" json:"info"`
 	Status string 				`gorm:"column:status;not null" json:"status"`
