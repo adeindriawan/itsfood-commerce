@@ -148,7 +148,7 @@ func CreateOrder(c *gin.Context) {
 	orderedForDate := orderedForYear + "-" + orderedForMonth + "-" + orderedForDay
 
 	for _, v := range cartContent {
-		newOrderDetails := models.OrderDetail{
+		newOrderDetail := models.OrderDetail{
 			OrderID: newOrderID,
 			MenuID: v.MenuID,
 			Qty: v.Qty,
@@ -159,7 +159,7 @@ func CreateOrder(c *gin.Context) {
 			CreatedAt: time.Now(),
 			CreatedBy: customerContext.User.Name,
 		}
-		creatingOrderDetails := services.DB.Create(&newOrderDetails)
+		creatingOrderDetails := services.DB.Create(&newOrderDetail)
 		errorCreatingOrderDetails := creatingOrderDetails.Error
 		if errorCreatingOrderDetails != nil {
 			c.JSON(512, gin.H{
@@ -171,14 +171,17 @@ func CreateOrder(c *gin.Context) {
 			return
 		}
 
+		sendTelegramNotificationToVendor(newOrderDetail.ID)
+
 		if int(v.VendorID) == itsmineVendorId {
-			itsmineOrder["id"] = int(newOrderDetails.ID)
+			itsmineOrder["id"] = int(newOrderDetail.ID)
 			itsmineOrder["qty"] = int(v.Qty)
 			itsmineOrder["product_id"] = int(v.MenuID)
 
 			itsmineData = append(itsmineData, itsmineOrder)
 		}
 	}
+
 	orderParam := map[string]interface{}{
 		"id": newOrderID,
 		"ordered_to": newOrder.OrderedTo,
@@ -208,7 +211,7 @@ func CreateOrder(c *gin.Context) {
 
 	// apakah ada order yang mengandung ITSMINE, jika ya, tembakkan ke API ITSMine
 	// apakah ada menu yang vendornya memiliki default delivery cost/service charge, jika ya, tambahkan record ke costs
-	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut
+	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut, lalu update order & order detail
 
 	_, errorSendingTelegram := _sendTelegramToGroup(newOrder, customerContext)
 	if errorSendingTelegram != nil {
@@ -243,6 +246,34 @@ func CreateOrder(c *gin.Context) {
 		"errors": errors,
 		"description": "Berhasil membuat order baru.",
 	})
+}
+
+func sendTelegramNotificationToVendor(orderDetailID uint64) {
+	var orderDetail models.OrderDetail
+	services.DB.Preload("Order.Customer.Unit").Preload("Order.Customer.User").Preload("Menu.Vendor.User").Where("id = ?", orderDetailID).First(&orderDetail)
+	vendorTelegramID := orderDetail.Menu.Vendor.VendorTelegramID
+	if vendorTelegramID != "" && vendorTelegramID != "NULL" {
+		orderID := strconv.Itoa(int(orderDetail.Order.ID))
+		vendorName := orderDetail.Menu.Vendor.User.Name
+		menuName := orderDetail.Menu.Name
+		menuQty := strconv.Itoa(int(orderDetail.Qty))
+		customerName := orderDetail.Order.Customer.User.Name
+		unitName := orderDetail.Order.Customer.Unit.Name
+		orderedForYear := strconv.Itoa(orderDetail.Order.OrderedFor.Year())
+		orderedForMonth := orderDetail.Order.OrderedFor.Month().String()
+		orderedForDay := strconv.Itoa(orderDetail.Order.OrderedFor.Day())
+		orderedForHour := strconv.Itoa(orderDetail.Order.OrderedFor.Hour())
+		orderedForMinute := strconv.Itoa(orderDetail.Order.OrderedFor.Minute())
+
+		telegramMessage := "Ada order baru untuk " + vendorName + " dengan ID #" + orderID + " dari " + customerName + " dari " + unitName + " berupa " + menuName + " sebanyak " + menuQty + " porsi"
+		telegramMessage += " untuk diantar pada " + orderedForDay + " " + orderedForMonth + " " + orderedForYear
+		telegramMessage += " " + orderedForHour + ":" + orderedForMinute
+		_sendTelegramToVendor(telegramMessage, vendorTelegramID)
+	}
+}
+
+func _sendTelegramToVendor(message string, chatID string) {
+	services.SendTelegramToVendor(message, chatID)
 }
 
 func _sendTelegramToGroup(newOrder models.Order, customerContext models.Customer) (bool, error) {
