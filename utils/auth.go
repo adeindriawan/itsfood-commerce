@@ -25,10 +25,10 @@ type TokenDetails struct {
 
 func CreateToken(userId uint64) (*TokenDetails, error) {
 	td := &TokenDetails{}
-  td.AtExpires = time.Now().Add(time.Minute * 15).Unix()
+  td.AtExpires = time.Now().Add(time.Minute * 15 * 1000).Unix()
   td.AccessUuid = uuid.NewV4().String()
 
-  td.RtExpires = time.Now().Add(time.Hour * 24 * 7).Unix()
+  td.RtExpires = time.Now().Add(time.Hour * 24 * 7 * 1000).Unix()
   td.RefreshUuid = uuid.NewV4().String()
 
 	var err error
