@@ -45,7 +45,7 @@ func ForgotPassword(c *gin.Context) {
 	mailSubject := "[ITS Food] Lupa Kata Sandi"
 	mailBody := resetToken
 
-	resetTokenExpires := time.Now().Add(time.Minute * 15).Unix()
+	resetTokenExpires := time.Now().Add(time.Minute * 15).UnixMilli()
 	rtx := time.Unix(resetTokenExpires, 0)
 	now := time.Now()
 	if err := services.GetRedis().Set(resetToken, mailTo, rtx.Sub(now)).Err(); err != nil {

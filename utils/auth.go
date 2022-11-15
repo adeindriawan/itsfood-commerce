@@ -25,10 +25,10 @@ type TokenDetails struct {
 
 func CreateToken(userId uint64) (*TokenDetails, error) {
 	td := &TokenDetails{}
-  td.AtExpires = time.Now().Add(time.Minute * 15 * 1000).Unix()
+  td.AtExpires = time.Now().Add(time.Minute * 15).UnixMilli()
   td.AccessUuid = uuid.NewV4().String()
 
-  td.RtExpires = time.Now().Add(time.Hour * 24 * 7 * 1000).Unix()
+  td.RtExpires = time.Now().Add(time.Hour * 24 * 7).UnixMilli()
   td.RefreshUuid = uuid.NewV4().String()
 
 	var err error
@@ -38,7 +38,7 @@ func CreateToken(userId uint64) (*TokenDetails, error) {
 	atClaims["authorized"] = true
 	atClaims["access_uuid"] = td.AccessUuid
 	atClaims["user_id"] = userId
-	atClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
+	atClaims["exp"] = time.Now().Add(time.Minute * 15).UnixMilli()
 	at := jwt.NewWithClaims(jwt.SigningMethodHS256, atClaims)
 	td.AccessToken, err = at.SignedString([]byte(os.Getenv("ACCESS_SECRET")))
 	if err != nil {
