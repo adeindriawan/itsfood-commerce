@@ -768,9 +768,8 @@ func Refresh(c *gin.Context) {
 			})
 			return
 		}
-		tokens := map[string]string{
-			"access_token": ts.AccessToken,
-			"refresh_token": ts.RefreshToken,
+		tokens := map[string]interface{}{
+			"tokens": ts,
 		}
 		c.JSON(201, gin.H{
 			"status": "success",

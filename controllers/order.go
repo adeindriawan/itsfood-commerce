@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"fmt"
+	// "fmt"
 	"time"
 	"strconv"
 	"github.com/gin-gonic/gin"
@@ -290,8 +290,6 @@ func notifyVendors(orderID uint64) {
 		CreatedBy: "Itsfood Commerce System",
 	}
 	services.DB.Create(&orderDump)
-	fmt.Println(len(wasSent))
-	fmt.Println(len(orderDetails))
 	if len(wasSent) == len(orderDetails) {
 		order.Status = "ForwardedEntirely"
 	} else {
@@ -300,6 +298,10 @@ func notifyVendors(orderID uint64) {
 	order.CreatedBy = "Itsfood Commerce System"
 	services.DB.Save(&order)
 }
+
+// func addDefaultCosts() {
+
+// }
 
 func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
 	var orderDetail models.OrderDetail
