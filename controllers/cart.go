@@ -248,14 +248,32 @@ func ViewCart(c *gin.Context) {
 	})
 }
 
+type CartUpdateURI struct {
+	Update string `uri:"update" binding:"required"`
+}
+
 func UpdateCart(c *gin.Context) {
 	var cart Cart
+	var checked = []string{}
+	params := c.Request.URL.Query()
+
 	if err := c.ShouldBindJSON(&cart); err != nil {
 		c.JSON(422, gin.H{
 			"status": "failed",
 			"errors": err.Error(),
 			"result": nil,
-			"description": "Data yang masuk tidak dapat diproses.",
+			"description": "Data yang masuk tidak dapat diproses. Hint: Payload body cannot be validated.",
+		})
+		return
+	}
+
+	var updateParam, doesUpdateParamExist = params["update"]
+	if !doesUpdateParamExist {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Update query parameter does not exist",
+			"result": nil,
+			"description": "Data yang masuk tidak dapat diproses. Hint: Query parameter cannot be validated.",
 		})
 		return
 	}
@@ -283,43 +301,56 @@ func UpdateCart(c *gin.Context) {
 		})
 		return
 	}
+
+	updatedField := updateParam[0]
 	for i, search := range cartContent {
 		if cart.ID == search.ID {
-			if !_menuMinOrderQtyValidated(cart.Qty, search.MinOrderQty) {
-				c.JSON(422, gin.H{
-					"status": "failed",
-					"errors": "Menu min order qty failed to be validated.",
-					"result": map[string]interface{}{
-						"cart_qty": cart.Qty,
-						"menu_min_qty": search.MinOrderQty,
-					},
-					"description": "Qty menu yang dimasukkan tidak sesuai dengan minimum order qty menu tersebut.",
-				})
-				return
-			} else if !_menuMaxOrderQtyValidated(cart.Qty, search.MaxOrderQty) {
-				c.JSON(422, gin.H{
-					"status": "failed",
-					"errors": "Menu max order qty failed to be validated.",
-					"result": map[string]interface{}{
-						"cart_qty": cart.Qty,
-						"menu_max_qty": search.MaxOrderQty,
-					},
-					"description": "Qty menu yang dimasukkan tidak sesuai dengan maksimum order qty menu tersebut.",
-				})
-				return
+			if updatedField == "qty" {
+				if !_menuMinOrderQtyValidated(cart.Qty, search.MinOrderQty) {
+					c.JSON(422, gin.H{
+						"status": "failed",
+						"errors": "Menu min order qty failed to be validated.",
+						"result": map[string]interface{}{
+							"cart_qty": cart.Qty,
+							"menu_min_qty": search.MinOrderQty,
+						},
+						"description": "Qty menu yang dimasukkan tidak sesuai dengan minimum order qty menu tersebut.",
+					})
+					return
+				} else if !_menuMaxOrderQtyValidated(cart.Qty, search.MaxOrderQty) {
+					c.JSON(422, gin.H{
+						"status": "failed",
+						"errors": "Menu max order qty failed to be validated.",
+						"result": map[string]interface{}{
+							"cart_qty": cart.Qty,
+							"menu_max_qty": search.MaxOrderQty,
+						},
+						"description": "Qty menu yang dimasukkan tidak sesuai dengan maksimum order qty menu tersebut.",
+					})
+					return
+				} else {
+					cartContent[i].Qty = cart.Qty
+				}
 			} else {
-				cartContent[i].Qty = cart.Qty
+				cartContent[i].Note = cart.Note
 			}
-		} else {
-			c.JSON(500, gin.H{
-				"status": "failed",
-				"errors": "No cart item with such ID",
-				"result": cartContent,
-				"description": "No cart item with such ID",
-			})
-			return
+			checked = append(checked, "true")
 		}
 	}
+
+	if len(checked) != len(cartContent) {
+		c.JSON(500, gin.H{
+			"status": "failed",
+			"errors": "No cart item with such ID",
+			"result": map[string]interface{}{
+				"checked": checked,
+				"cart": cartContent,
+			},
+			"description": "No cart content with such ID",
+		})
+		return
+	}
+
 	json, err := json.Marshal(cartContent)
 	if err != nil {
 		c.JSON(500, gin.H{
