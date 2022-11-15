@@ -289,7 +289,10 @@ func UpdateCart(c *gin.Context) {
 				c.JSON(422, gin.H{
 					"status": "failed",
 					"errors": "Menu min order qty failed to be validated.",
-					"result": nil,
+					"result": map[string]interface{}{
+						"cart_qty": cart.Qty,
+						"menu_min_qty": search.MinOrderQty,
+					},
 					"description": "Qty menu yang dimasukkan tidak sesuai dengan minimum order qty menu tersebut.",
 				})
 				return
@@ -297,13 +300,24 @@ func UpdateCart(c *gin.Context) {
 				c.JSON(422, gin.H{
 					"status": "failed",
 					"errors": "Menu max order qty failed to be validated.",
-					"result": nil,
+					"result": map[string]interface{}{
+						"cart_qty": cart.Qty,
+						"menu_max_qty": search.MaxOrderQty,
+					},
 					"description": "Qty menu yang dimasukkan tidak sesuai dengan maksimum order qty menu tersebut.",
 				})
 				return
 			} else {
 				cartContent[i].Qty = cart.Qty
 			}
+		} else {
+			c.JSON(500, gin.H{
+				"status": "failed",
+				"errors": "No cart item with such ID",
+				"result": cartContent,
+				"description": "No cart item with such ID",
+			})
+			return
 		}
 	}
 	json, err := json.Marshal(cartContent)
