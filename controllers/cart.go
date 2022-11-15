@@ -334,11 +334,11 @@ func UpdateCart(c *gin.Context) {
 			} else {
 				cartContent[i].Note = cart.Note
 			}
-			checked = append(checked, "true")
+			checked = append(checked, cart.ID)
 		}
 	}
 
-	if len(checked) != len(cartContent) {
+	if len(checked) == 0 {
 		c.JSON(500, gin.H{
 			"status": "failed",
 			"errors": "No cart item with such ID",
