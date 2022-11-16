@@ -45,6 +45,7 @@ func main() {
 			authorizedActiveCustomer.Use(middlewares.AuthorizedActiveCustomer())
 			{
 				authorizedActiveCustomer.POST("/orders", controllers.CreateOrder)
+				authorizedActiveCustomer.POST("/orders/v1", controllers.CreateOrderV1)
 			}
 		}
 	}

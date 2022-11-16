@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	// "fmt"
+	"runtime"
 	"time"
 	"strconv"
 	"github.com/gin-gonic/gin"
@@ -47,7 +47,7 @@ func _menuPreOrderValidated(cartContent []Cart, orderedFor time.Time) (bool, tim
 	return !minDeliveryTime.After(orderedFor), minDeliveryTime
 }
 
-func CreateOrder(c *gin.Context) {
+func CreateOrderV1(c *gin.Context) {
 	var order OrderPayload
 	var errors = []string{}
 	const itsmineVendorId int = 112
@@ -212,7 +212,200 @@ func CreateOrder(c *gin.Context) {
 		}
 	}
 	DestroyCustomerCart(customerId)
+
+	response := map[string]interface{}{
+		"id": newOrder.ID,
+		"ordered_by": customerContext,
+		"ordered_for": newOrder.OrderedFor,
+		"ordered_to": newOrder.OrderedTo,
+		"num_of_menus": newOrder.NumOfMenus,
+		"qty_of_menus": newOrder.QtyOfMenus,
+		"amount": newOrder.Amount,
+		"purpose": newOrder.Purpose,
+		"activity": newOrder.Activity,
+		"source_of_fund": newOrder.SourceOfFund,
+		"payment_option": newOrder.PaymentOption,
+		"info": newOrder.Info,
+	}
+
+	c.JSON(201, gin.H{
+		"status": "success",
+		"result": map[string]interface{}{
+			"order": response,
+		},
+		"errors": errors,
+		"description": "Berhasil membuat order baru.",
+	})
+}
+
+func CreateOrder(c *gin.Context) {
+	runtime.GOMAXPROCS(4)
+
+	var order OrderPayload
+	var errors = []string{}
+	const itsmineVendorId int = 112
+	var itsmineData []map[string]int
+	itsmineOrder := make(map[string]int)
+
+	if err := c.ShouldBindJSON(&order); err != nil {
+		c.JSON(422, gin.H{
+			"status": "failed",
+			"errors": err.Error(),
+			"result": nil,
+			"description": "Gagal memproses data yang masuk.",
+		})
+		return
+	}
+
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := strconv.Itoa(int(customerContext.ID))
+	cartContent, errCartContent := GetCustomerCartContent(customerId)
+	if errCartContent != nil {
+		c.JSON(500, gin.H{
+			"status": "failed",
+			"errors": errCartContent.Error(),
+			"result": nil,
+			"description": "Gagal mengambil isi keranjang user.",
+		})
+		return
+	}
+	// check apakah cart customer tersebut berisi setidaknya 1 item
+	totalItems := GetCustomerCartItems(cartContent)
+	if totalItems == 0 {
+		c.JSON(404, gin.H{
+			"status": "failed",
+			"errors": nil,
+			"result": nil,
+			"description": "Gagal membuat order baru. Keranjang user masih kosong.",
+		})
+		return
+	}
 	
+	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
+	if errConvertingOrderedFor != nil {
+		c.JSON(500, gin.H{
+			"status": "failed",
+			"errors": errConvertingOrderedFor.Error(),
+			"result": nil,
+			"description": "Gagal mengonversi waktu pengantaran pesanan.",
+		})
+		return
+	}
+	isPreOrderValidated, minDeliveryTime := _menuPreOrderValidated(cartContent, orderedFor)
+	if !isPreOrderValidated {
+		c.JSON(422, gin.H{
+			"status": "failed",
+			"errors": "Order time ahead of the minimum delivery time.",
+			"result": map[string]interface{}{
+				"Minimum delivery time": minDeliveryTime,
+			},
+			"description": "Waktu pengantaran pesanan yang diinginkan lebih cepat dibandingkan dengan waktu minimum pengiriman.",
+		})
+		return
+	}
+
+	orderedBy := customerContext.ID
+	newOrder := models.Order{
+		OrderedBy: orderedBy,
+		OrderedFor: orderedFor,
+		OrderedTo: order.OrderedTo,
+		NumOfMenus: uint(totalItems),
+		QtyOfMenus: uint(GetCustomerCartQty(cartContent)),
+		Amount: uint64(GetCustomerCartAmount(cartContent)),
+		Purpose: order.Purpose,
+		Activity: order.Activity,
+		SourceOfFund: order.SourceOfFund,
+		PaymentOption: order.PaymentOption,
+		Info: order.Info,
+		Status: "Created",
+		CreatedAt: time.Now(),
+		CreatedBy: customerContext.User.Name,
+	}
+
+	// Tambahkan record ke tabel orders dan order details
+	creatingOrder := services.DB.Create(&newOrder)
+	errorCreatingOrder := creatingOrder.Error
+	if errorCreatingOrder != nil {
+		c.JSON(512, gin.H{
+			"status": "failed",
+			"errors": errorCreatingOrder.Error(),
+			"result": order,
+			"description": "Gagal membuat menyimpan order baru ke dalam database.",
+		})
+		return
+	}
+	newOrderID := newOrder.ID
+	year, month, day := newOrder.OrderedFor.Date()
+	orderedForYear := strconv.Itoa(year)
+	orderedForMonth := strconv.Itoa(int(month))
+	orderedForDay := strconv.Itoa(day)
+	orderedForDate := orderedForYear + "-" + orderedForMonth + "-" + orderedForDay
+
+	for _, v := range cartContent {
+		newOrderDetail := models.OrderDetail{
+			OrderID: newOrderID,
+			MenuID: v.MenuID,
+			Qty: v.Qty,
+			Price: v.Price,
+			COGS: v.COGS,
+			Note: v.Note,
+			Status: "Ordered",
+			CreatedAt: time.Now(),
+			CreatedBy: customerContext.User.Name,
+		}
+		creatingOrderDetails := services.DB.Create(&newOrderDetail)
+		errorCreatingOrderDetails := creatingOrderDetails.Error
+		if errorCreatingOrderDetails != nil {
+			c.JSON(512, gin.H{
+				"status": "failed",
+				"errors": errorCreatingOrderDetails.Error(),
+				"result": v,
+				"description": "Gagal menyimpan data detail order.",
+			})
+			return
+		}
+
+		if int(v.VendorID) == itsmineVendorId {
+			itsmineOrder["id"] = int(newOrderDetail.ID)
+			itsmineOrder["qty"] = int(v.Qty)
+			itsmineOrder["product_id"] = int(v.MenuID)
+
+			itsmineData = append(itsmineData, itsmineOrder)
+		}
+	}
+
+	go addVendorDefaultCosts(newOrderID)
+	go notifyVendorsViaTelegram(newOrderID)
+	go notifyTelegramGroup(newOrder, customerContext)
+	go notifyAdminsViaEmail(newOrder, customerContext, cartContent)
+
+	orderParam := map[string]interface{}{
+		"id": newOrderID,
+		"ordered_to": newOrder.OrderedTo,
+		"ordered_for": orderedForDate,
+		"info": newOrder.Info,
+	}
+	customerParam := map[string]interface{}{
+		"id": customerContext.ID,
+		"name": customerContext.User.Name,
+		"phone": customerContext.User.Phone,
+		"unit_id": customerContext.Unit.ID,
+		"unit_name": customerContext.Unit.Name,
+	}
+	params := map[string]interface{}{
+		"order": orderParam,
+		"customer": customerParam,
+		"items": itsmineData,
+	}
+
+	if len(itsmineData) > 0 {
+		_, errorSendingItsmineOrder := utils.AddItsmineOrder(params)
+		if errorSendingItsmineOrder != nil {
+			errors = append(errors, errorSendingItsmineOrder.Error())
+		}
+	}
+	DestroyCustomerCart(customerId)
+
 	response := map[string]interface{}{
 		"id": newOrder.ID,
 		"ordered_by": customerContext,
