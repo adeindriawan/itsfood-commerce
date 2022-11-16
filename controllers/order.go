@@ -181,7 +181,10 @@ func CreateOrder(c *gin.Context) {
 		}
 	}
 
-	notifyVendors(newOrderID)
+	addVendorDefaultCosts(newOrderID)
+	notifyVendorsViaTelegram(newOrderID)
+	notifyTelegramGroup(newOrder, customerContext)
+	notifyAdminsViaEmail(newOrder, customerContext, cartContent)
 
 	orderParam := map[string]interface{}{
 		"id": newOrderID,
@@ -209,21 +212,7 @@ func CreateOrder(c *gin.Context) {
 		}
 	}
 	DestroyCustomerCart(customerId)
-
-	// apakah ada order yang mengandung ITSMINE, jika ya, tembakkan ke API ITSMine
-	// apakah ada menu yang vendornya memiliki default delivery cost/service charge, jika ya, tambahkan record ke costs
-	// apakah ada menu yang vendornya memiliki telegram id, jika ya, kirim notifikasi telegram ke ID tersebut, lalu update order & order detail
-
-	_, errorSendingTelegram := _sendTelegramToGroup(newOrder, customerContext)
-	if errorSendingTelegram != nil {
-		errors = append(errors, "Gagal mengirim notifikasi telegram order baru ke grup.")
-	}
 	
-	_, errorSendingNewOrderEmail := _sendEmailToAdmins(newOrder, customerContext, cartContent)
-	if errorSendingNewOrderEmail != nil {
-		errors = append(errors, "Gagal mengirim notifikasi email order baru ke admin.")
-	}
-
 	response := map[string]interface{}{
 		"id": newOrder.ID,
 		"ordered_by": customerContext,
@@ -249,7 +238,7 @@ func CreateOrder(c *gin.Context) {
 	})
 }
 
-func notifyVendors(orderID uint64) {
+func notifyVendorsViaTelegram(orderID uint64) {
 	// buat var array kosong
 	// iterasi di setiap isi order detail
 	// jika isi cart ada menu dari vendor yang memiliki Telegram ID
@@ -271,37 +260,37 @@ func notifyVendors(orderID uint64) {
 		}
 	}
 
-	orderDump := models.OrderDump{
-		SourceID: order.ID,
-		OrderedBy: order.OrderedBy,
-		OrderedFor: order.OrderedFor,
-		OrderedTo: order.OrderedTo,
-		NumOfMenus: order.NumOfMenus,
-		QtyOfMenus: order.QtyOfMenus,
-		Amount: order.Amount,
-		Purpose: order.Purpose,
-		Activity: order.Activity,
-		SourceOfFund: order.SourceOfFund,
-		PaymentOption: order.PaymentOption,
-		Info: order.Info,
-		Status: order.Status,
-		CreatedAt: order.CreatedAt,
-		UpdatedAt: time.Now(),
-		CreatedBy: "Itsfood Commerce System",
+	if len(wasSent) > 0 {
+		orderDump := models.OrderDump{
+			SourceID: order.ID,
+			OrderedBy: order.OrderedBy,
+			OrderedFor: order.OrderedFor,
+			OrderedTo: order.OrderedTo,
+			NumOfMenus: order.NumOfMenus,
+			QtyOfMenus: order.QtyOfMenus,
+			Amount: order.Amount,
+			Purpose: order.Purpose,
+			Activity: order.Activity,
+			SourceOfFund: order.SourceOfFund,
+			PaymentOption: order.PaymentOption,
+			Info: order.Info,
+			Status: order.Status,
+			CreatedAt: order.CreatedAt,
+			UpdatedAt: time.Now(),
+			CreatedBy: "Itsfood Commerce System",
+		}
+		services.DB.Create(&orderDump)
+		if len(wasSent) == len(orderDetails) {
+			order.Status = "ForwardedEntirely"
+		} else {
+			order.Status = "ForwardedPartially"
+		}
 	}
-	services.DB.Create(&orderDump)
-	if len(wasSent) == len(orderDetails) {
-		order.Status = "ForwardedEntirely"
-	} else {
-		order.Status = "ForwardedPartially"
-	}
+
 	order.CreatedBy = "Itsfood Commerce System"
 	services.DB.Save(&order)
 }
 
-// func addDefaultCosts() {
-
-// }
 
 func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
 	var orderDetail models.OrderDetail
@@ -354,6 +343,58 @@ func _sendTelegramToVendor(message string, chatID string) {
 	services.SendTelegramToVendor(message, chatID)
 }
 
+func addVendorDefaultCosts(orderID uint64) {
+	var order models.Order
+	services.DB.Preload("OrderDetail").Where("id = ?", orderID).First(&order)
+	orderDetails := order.OrderDetail
+	for _, v := range orderDetails {
+		orderDetailID := v.ID
+		saveVendorDefaultCosts(orderDetailID)
+	}
+}
+
+func saveVendorDefaultCosts(orderDetailID uint64) bool {
+	var orderDetail models.OrderDetail
+	services.DB.Preload("Menu.Vendor").Where("id = ?", orderDetailID).First(&orderDetail)
+	vendorDeliveryCost := orderDetail.Menu.Vendor.VendorDeliveryCost
+	vendorServiceCharge := orderDetail.Menu.Vendor.VendorServiceCharge
+	if vendorDeliveryCost != 0 || vendorServiceCharge != 0 {
+		if vendorDeliveryCost != 0 {
+			newCost := models.Cost{
+				OrderDetailID: orderDetail.ID,
+				Amount: vendorDeliveryCost,
+				Reason: "Delivery cost",
+				Status: "Unpaid",
+				CreatedAt: time.Now(),
+				CreatedBy: "Itsfood Commerce System",
+			}
+
+			services.DB.Create(&newCost)
+		}
+
+		if vendorServiceCharge != 0 {
+			newCost := models.Cost{
+				OrderDetailID: orderDetail.ID,
+				Amount: vendorServiceCharge,
+				Reason: "Service charge",
+				Status: "Unpaid",
+				CreatedAt: time.Now(),
+				CreatedBy: "Itsfood Commerce System",
+			}
+
+			services.DB.Create(&newCost)
+		}
+
+		return true
+	}
+
+	return false
+}
+
+func notifyTelegramGroup(newOrder models.Order, customerContext models.Customer) {
+	_sendTelegramToGroup(newOrder, customerContext)
+}
+
 func _sendTelegramToGroup(newOrder models.Order, customerContext models.Customer) (bool, error) {
 	telegramMessage := "Ada order baru nomor #"
 	orderId := strconv.Itoa(int(newOrder.ID))
@@ -373,6 +414,10 @@ func _sendTelegramToGroup(newOrder models.Order, customerContext models.Customer
 	}
 
 	return true, nil
+}
+
+func notifyAdminsViaEmail(newOrder models.Order, customerContext models.Customer, cartContent []Cart) {
+	_sendEmailToAdmins(newOrder, customerContext, cartContent)
 }
 
 func _sendEmailToAdmins(newOrder models.Order, customerContext models.Customer, cartContent []Cart) (bool, error) {
