@@ -20,7 +20,7 @@ func main() {
 	r.Use(utils.UseCORS())
 
 	r.GET("/", func(c *gin.Context) {
-		response := "This is ITSFood API Homepage. For full documentation, please visit this <a href='https://documenter.getpostman.com/view/2734100/2s83zdvRWQ' target='_blank'>link</a>"
+		response := "This is Itsfood Commerce Service API Homepage. For full documentation, please visit this <a href='https://documenter.getpostman.com/view/2734100/2s83zdvRWQ' target='_blank'>link</a>"
 		c.Data(200, "text/html; charset: utf-8", []byte(response))
 	})
 
@@ -45,7 +45,7 @@ func main() {
 			authorizedActiveCustomer.Use(middlewares.AuthorizedActiveCustomer())
 			{
 				authorizedActiveCustomer.POST("/orders", controllers.CreateOrder)
-				authorizedActiveCustomer.POST("/orders/v1", controllers.CreateOrderV1)
+				authorizedActiveCustomer.POST("v1/orders", controllers.CreateOrderV1)
 			}
 		}
 	}
