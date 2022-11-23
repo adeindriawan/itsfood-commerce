@@ -484,7 +484,6 @@ func notifyVendorsViaTelegram(orderID uint64) {
 	services.DB.Save(&order)
 }
 
-
 func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
 	var orderDetail models.OrderDetail
 	services.DB.Preload("Order.Customer.Unit").Preload("Order.Customer.User").Preload("Menu.Vendor.User").Where("id = ?", orderDetailID).First(&orderDetail)
@@ -676,8 +675,36 @@ type OrderDetailsUri struct {
 	Id uint64 `uri:"id" binding:"required"`
 }
 
+type OrderResult struct {
+	ID uint64							`json:"id"`
+	OrderedFor string			`json:"ordered_for"`
+	OrderedTo string 			`json:"ordered_to"`
+	NumOfMenus uint				`json:"num_of_menus"`
+	QtyOfMenus uint 			`json:"qty_of_menus"`
+	Amount uint64					`json:"amount"`
+	Purpose string				`json:"purpose"`
+	Activity string 			`json:"activity"`
+	SourceOfFund string		`json:"source_of_fund"`
+	PaymentOption string	`json:"payment_option"`
+	Info string						`json:"info"`
+	Status string					`json:"status"`
+	CreatedAt string			`json:"created_at"`
+}
+
+type OrderDetailResult struct {
+	ID uint64					`json:"id"`
+	MenuID uint64			`json:"menu_id"`
+	Name string				`json:"name"`
+	VendorName string	`json:"vendor_name"`
+	Price uint64			`json:"price"`
+	Qty uint					`json:"qty"`
+	Note string				`json:"note"`
+	Status string			`json:"status"`
+}
+
 func OrderDetails(c *gin.Context) {
-	var order models.Order
+	var order OrderResult
+	var orderDetail []OrderDetailResult
 	var uri OrderDetailsUri
 	if err := c.ShouldBindUri(&uri); err != nil {
 		c.JSON(400, gin.H{
@@ -688,19 +715,43 @@ func OrderDetails(c *gin.Context) {
 	}
 
 	orderId := c.Param("id")
-	query := services.DB.Preload("Customer.User").Table("orders").Where("id = ?", orderId).Order("id ASC").Limit(1).Find(&order)
-	queryError := query.Error
+	orderQuery := services.DB.Table("orders").
+				Select(`id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, 
+				num_of_menus AS NumOfMenus, qty_of_menus AS QtyOfMenus, amount AS Amount, purpose AS Purpose, 
+				source_of_fund AS SourceOfFund, payment_option AS PaymentOption, info AS Info, 
+				status AS Status, created_at AS CreatedAt`).
+				Where("id = ?", orderId).Order("id ASC").Limit(1).Scan(&order)
+	orderQueryError := orderQuery.Error
+
+	orderDetailQuery := services.DB.Table("order_details od").
+				Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS Name,
+				u.name AS VendorName, od.price AS Price, od.qty AS Qty,
+				od.note AS Note, od.status AS Status`).
+				Joins("JOIN menus m ON od.menu_id = m.id").
+				Joins("JOIN vendors v ON m.vendor_id = v.id").
+				Joins("JOIN users u ON v.user_id = u.id").
+				Where("order_id", orderId).Scan(&orderDetail)
+	orderDetailQueryError := orderDetailQuery.Error
 	
-	if queryError != nil {
+	if orderQueryError != nil || orderDetailQueryError != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
-			"errors": queryError.Error(),
+			"result": nil,
+			"errors": orderQueryError.Error() + " & " + orderDetailQueryError.Error(),
+			"description": "Gagal mengambil data order serta rinciannya dari database.",
 		})
 		return
 	}
 
+	result := map[string]interface{}{
+		"order": order,
+		"details": orderDetail,
+	}
+
 	c.JSON(200, gin.H{
 		"status": "success",
-		"result": order,
+		"errors": nil,
+		"result": result,
+		"description": "Berhasil mengambil data order serta rinciannya.",
 	})
 }

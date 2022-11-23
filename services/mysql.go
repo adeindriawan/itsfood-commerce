@@ -1,9 +1,7 @@
 package services
 
 import (
-	// "log"
 	"os"
-	// "github.com/joho/godotenv"
 	"gorm.io/gorm"
 	"gorm.io/driver/mysql"
 )
