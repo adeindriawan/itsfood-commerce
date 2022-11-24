@@ -694,7 +694,8 @@ type OrderResult struct {
 type OrderDetailResult struct {
 	ID uint64					`json:"id"`
 	MenuID uint64			`json:"menu_id"`
-	Name string				`json:"name"`
+	MenuName string		`json:"menu_name"`
+	MenuImage string 	`json:"menu_image"`
 	VendorName string	`json:"vendor_name"`
 	Price uint64			`json:"price"`
 	Qty uint					`json:"qty"`
@@ -718,13 +719,14 @@ func OrderDetails(c *gin.Context) {
 	orderQuery := services.DB.Table("orders").
 				Select(`id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, 
 				num_of_menus AS NumOfMenus, qty_of_menus AS QtyOfMenus, amount AS Amount, purpose AS Purpose, 
+				activity AS Activity, 
 				source_of_fund AS SourceOfFund, payment_option AS PaymentOption, info AS Info, 
 				status AS Status, created_at AS CreatedAt`).
 				Where("id = ?", orderId).Order("id ASC").Limit(1).Scan(&order)
 	orderQueryError := orderQuery.Error
 
 	orderDetailQuery := services.DB.Table("order_details od").
-				Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS Name,
+				Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS MenuName, m.image AS MenuImage, 
 				u.name AS VendorName, od.price AS Price, od.qty AS Qty,
 				od.note AS Note, od.status AS Status`).
 				Joins("JOIN menus m ON od.menu_id = m.id").
