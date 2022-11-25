@@ -44,6 +44,7 @@ func main() {
 			authorizedActiveCustomer := authorizedCustomer.Group("/")
 			authorizedActiveCustomer.Use(middlewares.AuthorizedActiveCustomer())
 			{
+				authorizedActiveCustomer.GET("/orders", controllers.GetOrders)
 				authorizedActiveCustomer.POST("/orders", controllers.CreateOrder)
 				authorizedActiveCustomer.POST("v1/orders", controllers.CreateOrderV1)
 			}

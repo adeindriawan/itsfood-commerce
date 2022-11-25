@@ -671,10 +671,6 @@ func _cartDetailsForEmail(customerCartContent []Cart) string {
 	return cartDetails
 }
 
-type OrderDetailsUri struct {
-	Id uint64 `uri:"id" binding:"required"`
-}
-
 type OrderResult struct {
 	ID uint64							`json:"id"`
 	OrderedFor string			`json:"ordered_for"`
@@ -689,6 +685,80 @@ type OrderResult struct {
 	Info string						`json:"info"`
 	Status string					`json:"status"`
 	CreatedAt string			`json:"created_at"`
+}
+
+func GetOrders(c *gin.Context) {
+	var orders []OrderResult
+	var messages = []string{}
+
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerID := customerContext.ID
+
+	params := c.Request.URL.Query()
+	idParam, doesIdParamExist := params["id"]
+	lengthParam, doesLengthParamExist := params["length"]
+	pageParam, doesPageParamExist := params["page"]
+	orderQuery := services.DB.Table("orders").
+		Select(`
+			id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, num_of_menus AS NumOfMenus,
+			qty_of_menus AS QtyOfMenus, amount AS Amount, purpose AS Purpose, activity AS Activity,
+			source_of_fund AS SourceOfFund, payment_option AS PaymentOption, info AS Info,
+			status AS Status, created_at AS CreatedAt
+		`).
+		Where("ordered_by = ?", customerID)
+	
+	if doesIdParamExist {
+		id := idParam[0]
+		orderQuery = orderQuery.Where("id = ?", id)
+	}
+	orderQuery.Scan(&orders)
+	totalRows := orderQuery.RowsAffected
+	if doesLengthParamExist {
+		length, err := strconv.Atoi(lengthParam[0])
+		if err != nil {
+			messages = append(messages, "Parameter Length tidak dapat dikonversi ke integer")
+		} else {
+			orderQuery = orderQuery.Limit(length)
+		}
+	}
+	if doesPageParamExist {
+		if doesLengthParamExist {
+			page, _ := strconv.Atoi(pageParam[0])
+			length, _ := strconv.Atoi(lengthParam[0])
+			offset := (page - 1) * length
+			orderQuery = orderQuery.Offset(offset)
+		} else {
+			messages = append(messages, "Tidak ada parameter Length, maka parameter Page diabaikan.")
+		}
+	}
+	orderQuery.Scan(&orders)
+	rowsCount := orderQuery.RowsAffected
+
+	if orderQuery.Error != nil {
+		c.JSON(512, gin.H{
+			"status": "failed",
+			"errors": orderQuery.Error.Error(),
+			"result": nil,
+			"description": "Gagal mengeksekusi query.",
+		})
+	}
+
+	orderData := map[string]interface{}{
+		"data": orders,
+		"rows_count": rowsCount,
+		"total_rows": totalRows,
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"result": orderData,
+		"errors": messages,
+		"description": "Berhasil mengambil data order dari user ini.",
+	})
+}
+
+type OrderDetailsUri struct {
+	Id uint64 `uri:"id" binding:"required"`
 }
 
 type OrderDetailResult struct {
