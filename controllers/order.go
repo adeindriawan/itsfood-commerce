@@ -696,6 +696,7 @@ func GetOrders(c *gin.Context) {
 
 	params := c.Request.URL.Query()
 	idParam, doesIdParamExist := params["id"]
+	paidParam, doesPaidParamExist := params["paid"]
 	lengthParam, doesLengthParamExist := params["length"]
 	pageParam, doesPageParamExist := params["page"]
 	orderQuery := services.DB.Table("orders").
@@ -710,6 +711,16 @@ func GetOrders(c *gin.Context) {
 	if doesIdParamExist {
 		id := idParam[0]
 		orderQuery = orderQuery.Where("id = ?", id)
+	}
+	if doesPaidParamExist {
+		paid := paidParam[0]
+		if paid == "false" {
+			orderQuery = orderQuery.Where("status IN ?", []string{"Created", "ForwardedPartially", "ForwardedEntirely", "Processed", "Completed", "BilledPartially", "BilledEntirely"})
+		}
+
+		if paid == "true" {
+			orderQuery = orderQuery.Where("status IN ?", []string{"Paid", "PaidAndBilledPartially", "PaidAndBilledEntirely", "PaidByCustomerAndToVendor"})
+		}
 	}
 	orderQuery.Scan(&orders)
 	totalRows := orderQuery.RowsAffected
