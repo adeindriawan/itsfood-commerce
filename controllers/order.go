@@ -496,15 +496,10 @@ func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
 		menuQty := strconv.Itoa(int(orderDetail.Qty))
 		customerName := orderDetail.Order.Customer.User.Name
 		unitName := orderDetail.Order.Customer.Unit.Name
-		orderedForYear := strconv.Itoa(orderDetail.Order.OrderedFor.Year())
-		orderedForMonth := orderDetail.Order.OrderedFor.Month().String()
-		orderedForDay := strconv.Itoa(orderDetail.Order.OrderedFor.Day())
-		orderedForHour := strconv.Itoa(orderDetail.Order.OrderedFor.Hour())
-		orderedForMinute := strconv.Itoa(orderDetail.Order.OrderedFor.Minute())
+		orderedForDate := utils.ConvertDateToPhrase(orderDetail.Order.OrderedFor, true)
 
 		telegramMessage := "Ada order baru untuk " + vendorName + " dengan ID #" + orderID + " dari " + customerName + " dari " + unitName + " berupa " + menuName + " sebanyak " + menuQty + " porsi"
-		telegramMessage += " untuk diantar pada " + orderedForDay + " " + orderedForMonth + " " + orderedForYear
-		telegramMessage += " " + orderedForHour + ":" + orderedForMinute
+		telegramMessage += " untuk diantar pada " + orderedForDate
 
 		orderDetailDump := models.OrderDetailDump{
 			SourceID: orderDetail.ID,
@@ -591,14 +586,9 @@ func notifyTelegramGroup(newOrder models.Order, customerContext models.Customer)
 func _sendTelegramToGroup(newOrder models.Order, customerContext models.Customer) (bool, error) {
 	telegramMessage := "Ada order baru nomor #"
 	orderId := strconv.Itoa(int(newOrder.ID))
-	orderedForYear := strconv.Itoa(newOrder.OrderedFor.Year())
-	orderedForMonth := newOrder.OrderedFor.Month().String()
-	orderedForDay := strconv.Itoa(newOrder.OrderedFor.Day())
-	orderedForHour := strconv.Itoa(newOrder.OrderedFor.Hour())
-	orderedForMinute := strconv.Itoa(newOrder.OrderedFor.Minute())
+	orderedForDate := utils.ConvertDateToPhrase(newOrder.OrderedFor, true)
 	telegramMessage += orderId + " dari " + customerContext.User.Name + " di " + customerContext.Unit.Name
-	telegramMessage += " untuk diantar pada " + orderedForDay + " " + orderedForMonth + " " + orderedForYear
-	telegramMessage += " " + orderedForHour + ":" + orderedForMinute
+	telegramMessage += " untuk diantar pada " + orderedForDate
 	telegramMessage += ", klik <a href='https://itsfood.id/publics/view-order/" + orderId + "'> di sini</a> untuk detail."
 
 	_, errorSendingTelegram := services.SendTelegramToGroup(telegramMessage)
@@ -632,11 +622,7 @@ func _sendEmailToAdmins(newOrder models.Order, customerContext models.Customer, 
 func _newOrderEmailBody(newOrder models.Order, customerContext models.Customer, cartContent []Cart, adminID uint64) string {
 	adminId := strconv.Itoa(int(adminID))
 	orderId := strconv.Itoa(int(newOrder.ID))
-	orderedForYear := strconv.Itoa(newOrder.OrderedFor.Year())
-	orderedForMonth := newOrder.OrderedFor.Month().String()
-	orderedForDay := strconv.Itoa(newOrder.OrderedFor.Day())
-	orderedForHour := strconv.Itoa(newOrder.OrderedFor.Hour())
-	orderedForMinute := strconv.Itoa(newOrder.OrderedFor.Minute())
+	orderedForDate := utils.ConvertDateToPhrase(newOrder.OrderedFor, true)
 	customerCartAmount := strconv.Itoa(int(GetCustomerCartAmount(cartContent)))
 	cartDetails := _cartDetailsForEmail(cartContent)
 	emailMessage := "Dear admin Itsfood,<br><br><br>"
@@ -644,7 +630,7 @@ func _newOrderEmailBody(newOrder models.Order, customerContext models.Customer, 
 	emailMessage += " dengan rincian sebagai berikut:<br>"
 	emailMessage += cartDetails + "<br>"
 	emailMessage += "Total penjualan: Rp" + customerCartAmount + "<br>"
-	emailMessage += "Diantar pada: " + orderedForDay + " " + orderedForMonth + " " + orderedForYear + " " + orderedForHour + ":" + orderedForMinute + "<br>"
+	emailMessage += "Diantar pada: " + orderedForDate + "<br>"
 	emailMessage += "Tujuan: " + newOrder.OrderedTo + "<br>"
 	emailMessage += "Untuk keperluan: " + newOrder.Purpose + "<br>"
 	emailMessage += "Informasi tambahan: " + newOrder.Info + "<br>"
