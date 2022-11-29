@@ -470,7 +470,7 @@ func notifyVendorsViaTelegram(orderID uint64) {
 			Status: order.Status,
 			CreatedAt: order.CreatedAt,
 			UpdatedAt: time.Now(),
-			CreatedBy: "Itsfood Commerce System",
+			CreatedBy: order.CreatedBy,
 		}
 		services.DB.Create(&orderDump)
 		if len(wasSent) == len(orderDetails) {
@@ -480,6 +480,7 @@ func notifyVendorsViaTelegram(orderID uint64) {
 		}
 	}
 
+	order.UpdatedAt = time.Now()
 	order.CreatedBy = "Itsfood Commerce System"
 	services.DB.Save(&order)
 }
