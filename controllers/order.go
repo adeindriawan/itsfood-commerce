@@ -700,6 +700,12 @@ func GetOrders(c *gin.Context) {
 	paidParam, doesPaidParamExist := params["paid"]
 	lengthParam, doesLengthParamExist := params["length"]
 	pageParam, doesPageParamExist := params["page"]
+	statusParam, doesStatusParamExist := params["status"]
+	startOrderDateParam, doesStartOrderDateParamExist := params["order_date[start]"]
+	endOrderDateParam, doesEndOrderDateParamExist := params["order_date[end]"]
+	startDeliveryDateParam, doesStartDeliveryDateParamExist := params["delivery_date[start]"]
+	endDeliveryDateParam, doesEndDeliveryDateParamExist := params["delivery_date[end]"]
+	purposeParam, doesPurposeParamExist := params["purpose"]
 	orderQuery := services.DB.Table("orders").
 		Select(`
 			id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, num_of_menus AS NumOfMenus,
@@ -708,6 +714,48 @@ func GetOrders(c *gin.Context) {
 			status AS Status, created_at AS CreatedAt
 		`).
 		Where("ordered_by = ?", customerID)
+	
+	if doesStatusParamExist {
+		status := statusParam[0]
+		orderQuery = orderQuery.Where("status = ?", status)
+	}
+
+	if doesStartOrderDateParamExist && !doesEndOrderDateParamExist {
+		startOrderDate := startOrderDateParam[0]
+		orderQuery = orderQuery.Where("created_at >= ?", startOrderDate)
+	}
+
+	if !doesStartOrderDateParamExist && doesEndOrderDateParamExist {
+		endOrderDate := endOrderDateParam[0]
+		orderQuery = orderQuery.Where("created_at <= ?", endOrderDate)
+	}
+
+	if doesStartOrderDateParamExist && doesEndOrderDateParamExist {
+		startOrderDate := startOrderDateParam[0]
+		endOrderDate := endOrderDateParam[0]
+		orderQuery = orderQuery.Where("created_at BETWEEN ? AND ?", startOrderDate, endOrderDate)
+	}
+
+	if doesStartDeliveryDateParamExist && !doesEndDeliveryDateParamExist {
+		startDeliveryDate := startDeliveryDateParam[0]
+		orderQuery = orderQuery.Where("ordered_for >= ?", startDeliveryDate)
+	}
+
+	if !doesStartDeliveryDateParamExist && doesEndDeliveryDateParamExist {
+		endDeliveryDate := endDeliveryDateParam[0]
+		orderQuery = orderQuery.Where("ordered_for <= ?", endDeliveryDate)
+	}
+
+	if doesStartDeliveryDateParamExist && doesEndDeliveryDateParamExist {
+		startDeliveryDate := startDeliveryDateParam[0]
+		endDeliveryDate := endDeliveryDateParam[0]
+		orderQuery = orderQuery.Where("ordered_for BETWEEN ? AND ?", startDeliveryDate, endDeliveryDate)
+	}
+
+	if doesPurposeParamExist {
+		purpose := purposeParam[0]
+		orderQuery = orderQuery.Where("purpose LIKE ?", "%"+purpose+"%")
+	}
 	
 	if doesIdParamExist {
 		id := idParam[0]
