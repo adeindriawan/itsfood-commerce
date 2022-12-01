@@ -431,15 +431,6 @@ func CreateOrder(c *gin.Context) {
 }
 
 func notifyVendorsViaTelegram(orderID uint64) {
-	// buat var array kosong
-	// iterasi di setiap isi order detail
-	// jika isi cart ada menu dari vendor yang memiliki Telegram ID
-	// kirim notifikasi ke vendor tersebut
-	// ubah status order detail dari "Ordered" menjadi "Sent"
-	// masukkan 1 value ke array
-	// akhir iterasi, cek apalah len(array) == len(cartContent)
-	// jika ya, ubah status order dari "Created" menjadi "ForwardedEntirely"
-	// jika tidak, ubah status order dari "Created" menjadi "ForwarderPartially"
 	var order models.Order
 	services.DB.Preload("OrderDetail").Where("id = ?", orderID).First(&order)
 	orderDetails := order.OrderDetail
@@ -454,38 +445,13 @@ func notifyVendorsViaTelegram(orderID uint64) {
 
 	if len(wasSent) > 0 {
 		var status string
-		// orderDump := models.OrderDump{
-		// 	SourceID: order.ID,
-		// 	OrderedBy: order.OrderedBy,
-		// 	OrderedFor: order.OrderedFor,
-		// 	OrderedTo: order.OrderedTo,
-		// 	NumOfMenus: order.NumOfMenus,
-		// 	QtyOfMenus: order.QtyOfMenus,
-		// 	Amount: order.Amount,
-		// 	Purpose: order.Purpose,
-		// 	Activity: order.Activity,
-		// 	SourceOfFund: order.SourceOfFund,
-		// 	PaymentOption: order.PaymentOption,
-		// 	Info: order.Info,
-		// 	Status: order.Status,
-		// 	CreatedAt: order.CreatedAt,
-		// 	UpdatedAt: time.Now(),
-		// 	CreatedBy: order.CreatedBy,
-		// }
-		// services.DB.Create(&orderDump)
 		if len(wasSent) == len(orderDetails) {
-			// order.Status = "ForwardedEntirely"
 			status = "ForwardedEntirely"
 		} else {
-			// order.Status = "ForwardedPartially"
 			status = "ForwardedPartially"
 		}
 		models.UpdateOrder(map[string]interface{}{"id": orderID}, map[string]interface{}{"status": status, "updated_at": time.Now(), "created_by": "Itsfood Commerce System"})
 	}
-
-	// order.UpdatedAt = time.Now()
-	// order.CreatedBy = "Itsfood Commerce System"
-	// services.DB.Save(&order)
 }
 
 func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
@@ -504,24 +470,7 @@ func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
 		telegramMessage := "Ada order baru untuk " + vendorName + " dengan ID #" + orderID + " dari " + customerName + " dari " + unitName + " berupa " + menuName + " sebanyak " + menuQty + " porsi"
 		telegramMessage += " untuk diantar pada " + orderedForDate
 
-		orderDetailDump := models.OrderDetailDump{
-			SourceID: orderDetail.ID,
-			OrderID: orderDetail.OrderID,
-			MenuID: orderDetail.MenuID,
-			Qty: orderDetail.Qty,
-			Price: orderDetail.Price,
-			COGS: orderDetail.COGS,
-			Note: orderDetail.Note,
-			Status: orderDetail.Status,
-			CreatedAt: orderDetail.CreatedAt,
-			UpdatedAt: time.Now(),
-			CreatedBy: orderDetail.CreatedBy,
-		}
-		services.DB.Create(&orderDetailDump)
-
-		orderDetail.Status = "Sent"
-		orderDetail.CreatedBy = "Itsfood Commerce System"
-		services.DB.Save(&orderDetail)
+		models.UpdateOrderDetail(map[string]interface{}{"id": orderDetailID}, map[string]interface{}{"status": "Sent", "updated_at": time.Now(), "created_by": "Itsfood Commerce System"})
 
 		_sendTelegramToVendor(telegramMessage, vendorTelegramID)
 		return true

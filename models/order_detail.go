@@ -2,6 +2,7 @@ package models
 
 import (
 	"time"
+	"github.com/adeindriawan/itsfood-commerce/services"
 )
 
 type OrderDetail struct {
@@ -40,4 +41,27 @@ type OrderDetailDump struct {
 
 func (OrderDetailDump) TableName() string {
 	return "__order_details"
+}
+
+func UpdateOrderDetail(params map[string]interface{}, update map[string]interface{}) {
+	var orderDetails []OrderDetail
+	services.DB.Find(&orderDetails, params)
+
+	for _, item := range orderDetails {
+		orderDetailDump := OrderDetailDump{
+			SourceID: item.ID,
+			OrderID: item.OrderID,
+			MenuID: item.MenuID,
+			Qty: item.Qty,
+			Price: item.Price,
+			COGS: item.COGS,
+			Note: item.Note,
+			Status: item.Status,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+			CreatedBy: item.CreatedBy,
+		}
+		services.DB.Create(&orderDetailDump)
+	}
+	services.DB.Model(&orderDetails).Updates(update)
 }
