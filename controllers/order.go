@@ -8,6 +8,7 @@ import (
 	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/adeindriawan/itsfood-commerce/models"
 	"github.com/adeindriawan/itsfood-commerce/utils"
+	"strings"
 )
 
 type OrderPayload struct {
@@ -703,7 +704,7 @@ func GetOrders(c *gin.Context) {
 	
 	if doesStatusParamExist {
 		status := statusParam[0]
-		orderQuery = orderQuery.Where("status = ?", status)
+		orderQuery = orderQuery.Where("status IN ?", strings.Split(status, ","))
 	}
 
 	if doesStartOrderDateParamExist && !doesEndOrderDateParamExist {
