@@ -10,7 +10,7 @@ func ConvertDateToPhrase(date time.Time, withTime bool) string {
 	var readableDate = ""
 	var m int = int(date.Month())
 	dateYear := strconv.Itoa(date.Year())
-	dateMonth := months[m]
+	dateMonth := months[m-1]
 	dateDay := strconv.Itoa(date.Day())
 
 	readableDate += dateDay + " " + dateMonth + " " + dateYear

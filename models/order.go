@@ -2,6 +2,7 @@ package models
 
 import (
 	"time"
+	"github.com/adeindriawan/itsfood-commerce/services"
 )
 
 type Order struct {
@@ -47,10 +48,35 @@ type OrderDump struct {
 	CreatedBy string 			`gorm:"created_by;not null" json:"created_by"`
 }
 
-type Tabler interface {
-	TableName() string
-}
-
 func (OrderDump) TableName() string {
 	return "__orders"
+}
+
+func UpdateOrder(params map[string]interface{}, update map[string]interface{}) {
+	var orders []Order
+	services.DB.Find(&orders, params)
+	// create dump
+	for _, item := range orders {
+		orderDump := OrderDump{
+			SourceID: item.ID,
+			OrderedBy: item.OrderedBy,
+			OrderedFor: item.OrderedFor,
+			OrderedTo: item.OrderedTo,
+			NumOfMenus: item.NumOfMenus,
+			QtyOfMenus: item.QtyOfMenus,
+			Amount: item.Amount,
+			Purpose: item.Purpose,
+			Activity: item.Activity,
+			SourceOfFund: item.SourceOfFund,
+			PaymentOption: item.PaymentOption,
+			Info: item.Info,
+			Status: item.Status,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+			CreatedBy: item.CreatedBy,
+		}
+		services.DB.Create(&orderDump)
+	}
+	// update record
+	services.DB.Model(&orders).Updates(update)
 }

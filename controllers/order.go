@@ -375,11 +375,6 @@ func CreateOrder(c *gin.Context) {
 		}
 	}
 
-	go addVendorDefaultCosts(newOrderID)
-	go notifyVendorsViaTelegram(newOrderID)
-	go notifyTelegramGroup(newOrder, customerContext)
-	go notifyAdminsViaEmail(newOrder, customerContext, cartContent)
-
 	orderParam := map[string]interface{}{
 		"id": newOrderID,
 		"ordered_to": newOrder.OrderedTo,
@@ -400,11 +395,14 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	if len(itsmineData) > 0 {
-		_, errorSendingItsmineOrder := utils.AddItsmineOrder(params)
-		if errorSendingItsmineOrder != nil {
-			errors = append(errors, errorSendingItsmineOrder.Error())
-		}
+		go utils.AddItsmineOrder(params)
 	}
+
+	go addVendorDefaultCosts(newOrderID)
+	go notifyVendorsViaTelegram(newOrderID)
+	go notifyTelegramGroup(newOrder, customerContext)
+	go notifyAdminsViaEmail(newOrder, customerContext, cartContent)
+
 	DestroyCustomerCart(customerId)
 
 	response := map[string]interface{}{
@@ -455,35 +453,39 @@ func notifyVendorsViaTelegram(orderID uint64) {
 	}
 
 	if len(wasSent) > 0 {
-		orderDump := models.OrderDump{
-			SourceID: order.ID,
-			OrderedBy: order.OrderedBy,
-			OrderedFor: order.OrderedFor,
-			OrderedTo: order.OrderedTo,
-			NumOfMenus: order.NumOfMenus,
-			QtyOfMenus: order.QtyOfMenus,
-			Amount: order.Amount,
-			Purpose: order.Purpose,
-			Activity: order.Activity,
-			SourceOfFund: order.SourceOfFund,
-			PaymentOption: order.PaymentOption,
-			Info: order.Info,
-			Status: order.Status,
-			CreatedAt: order.CreatedAt,
-			UpdatedAt: time.Now(),
-			CreatedBy: order.CreatedBy,
-		}
-		services.DB.Create(&orderDump)
+		var status string
+		// orderDump := models.OrderDump{
+		// 	SourceID: order.ID,
+		// 	OrderedBy: order.OrderedBy,
+		// 	OrderedFor: order.OrderedFor,
+		// 	OrderedTo: order.OrderedTo,
+		// 	NumOfMenus: order.NumOfMenus,
+		// 	QtyOfMenus: order.QtyOfMenus,
+		// 	Amount: order.Amount,
+		// 	Purpose: order.Purpose,
+		// 	Activity: order.Activity,
+		// 	SourceOfFund: order.SourceOfFund,
+		// 	PaymentOption: order.PaymentOption,
+		// 	Info: order.Info,
+		// 	Status: order.Status,
+		// 	CreatedAt: order.CreatedAt,
+		// 	UpdatedAt: time.Now(),
+		// 	CreatedBy: order.CreatedBy,
+		// }
+		// services.DB.Create(&orderDump)
 		if len(wasSent) == len(orderDetails) {
-			order.Status = "ForwardedEntirely"
+			// order.Status = "ForwardedEntirely"
+			status = "ForwardedEntirely"
 		} else {
-			order.Status = "ForwardedPartially"
+			// order.Status = "ForwardedPartially"
+			status = "ForwardedPartially"
 		}
+		models.UpdateOrder(map[string]interface{}{"id": orderID}, map[string]interface{}{"status": status, "updated_at": time.Now(), "created_by": "Itsfood Commerce System"})
 	}
 
-	order.UpdatedAt = time.Now()
-	order.CreatedBy = "Itsfood Commerce System"
-	services.DB.Save(&order)
+	// order.UpdatedAt = time.Now()
+	// order.CreatedBy = "Itsfood Commerce System"
+	// services.DB.Save(&order)
 }
 
 func sendTelegramNotificationToVendor(orderDetailID uint64) bool {
