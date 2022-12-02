@@ -6,12 +6,14 @@ import (
 	"time"
 	"strconv"
 	"strings"
+	"errors"
 	"net/http"
 	"github.com/twinj/uuid"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/adeindriawan/itsfood-commerce/services"
+	"github.com/adeindriawan/itsfood-commerce/models"
 )
 
 type TokenDetails struct {
@@ -176,4 +178,26 @@ func AuthCheck(c *gin.Context) (uint64, error) {
 	}
 
 	return userId, nil
+}
+
+func GetCustomerType(c *gin.Context) (string, error) {
+	var errorCustomerNotIdentified error = errors.New("customer tidak teridentifikasi: customer belum login atau register")
+	var customer models.Customer
+
+	userId, err := AuthCheck(c)
+	if err != nil {
+		return "", errorCustomerNotIdentified
+	}
+
+	query := services.DB.First(&customer, userId)
+	if query.Error != nil {
+		return "", errorCustomerNotIdentified
+	}
+
+	if query.RowsAffected == 1 {
+		customerType := customer.Type
+		return customerType, nil
+	}
+
+	return "", errorCustomerNotIdentified
 }
