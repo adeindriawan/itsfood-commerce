@@ -44,7 +44,7 @@ type OrderDump struct {
 	Info string	 					`gorm:"info;not null" json:"info"`
 	Status string 				`gorm:"column:status;not null" json:"status"`
 	CreatedAt time.Time		`gorm:"column:created_at;not null" json:"created_at"`
-	UpdatedAt time.Time		`gorm:"column:updated_at;not null" json:"updated_at"`
+	UpdatedAt time.Time		`gorm:"column:updated_at;autoUpdateTime:false" json:"updated_at"`
 	CreatedBy string 			`gorm:"created_by;not null" json:"created_by"`
 }
 

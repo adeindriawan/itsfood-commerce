@@ -267,7 +267,7 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 	
-	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
+	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor + "+07:00")
 	if errConvertingOrderedFor != nil {
 		c.JSON(500, gin.H{
 			"status": "failed",
