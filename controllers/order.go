@@ -214,25 +214,10 @@ func CreateOrderV1(c *gin.Context) {
 	}
 	DestroyCustomerCart(customerId)
 
-	response := map[string]interface{}{
-		"id": newOrder.ID,
-		"ordered_by": customerContext,
-		"ordered_for": newOrder.OrderedFor,
-		"ordered_to": newOrder.OrderedTo,
-		"num_of_menus": newOrder.NumOfMenus,
-		"qty_of_menus": newOrder.QtyOfMenus,
-		"amount": newOrder.Amount,
-		"purpose": newOrder.Purpose,
-		"activity": newOrder.Activity,
-		"source_of_fund": newOrder.SourceOfFund,
-		"payment_option": newOrder.PaymentOption,
-		"info": newOrder.Info,
-	}
-
 	c.JSON(201, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
-			"order": response,
+			"order": newOrder,
 		},
 		"errors": errors,
 		"description": "Berhasil membuat order baru.",
@@ -405,25 +390,10 @@ func CreateOrder(c *gin.Context) {
 
 	DestroyCustomerCart(customerId)
 
-	response := map[string]interface{}{
-		"id": newOrder.ID,
-		"ordered_by": customerContext,
-		"ordered_for": newOrder.OrderedFor,
-		"ordered_to": newOrder.OrderedTo,
-		"num_of_menus": newOrder.NumOfMenus,
-		"qty_of_menus": newOrder.QtyOfMenus,
-		"amount": newOrder.Amount,
-		"purpose": newOrder.Purpose,
-		"activity": newOrder.Activity,
-		"source_of_fund": newOrder.SourceOfFund,
-		"payment_option": newOrder.PaymentOption,
-		"info": newOrder.Info,
-	}
-
 	c.JSON(201, gin.H{
 		"status": "success",
 		"result": map[string]interface{}{
-			"order": response,
+			"order": newOrder,
 		},
 		"errors": errors,
 		"description": "Berhasil membuat order baru.",
