@@ -4,37 +4,36 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"github.com/adeindriawan/itsfood-commerce/models"
 	"github.com/adeindriawan/itsfood-commerce/services"
 	"github.com/adeindriawan/itsfood-commerce/utils"
+	"github.com/gin-gonic/gin"
 )
 
 type MenuData struct {
-	ID uint										`json:"id"`
-  Name string								`json:"name"`
-	Description string				`json:"description"`
-	VendorID uint							`json:"vendor_id"`
-  VendorName string					`json:"vendor_name"`
-	Type models.MenuCategory 	`json:"category"`
-	Price	uint								`json:"price"`
-	COGS uint									`json:"cogs"`
-	PreOrderDays uint 				`json:"pre_order_days"`
-	PreOrderHours uint 				`json:"pre_order_hours"`
-	MinOrderQty uint 					`json:"min_order_qty"`
-	MaxOrderQty uint 					`json:"max_order_qty"`
-	Image string 							`json:"image"`
-	VendorNoteForMenus string	`json:"vendor_note_for_menus"`
-	VendorDeliveryCost uint		`json:"vendor_delivery_cost"`
-	VendorServiceCharge uint	`json:"vendor_service_charge"`
-	VendorMinOrderAmount uint	`json:"vendor_min_order_amount"`
+	ID                   uint                `json:"id"`
+	Name                 string              `json:"name"`
+	Description          string              `json:"description"`
+	VendorID             uint                `json:"vendor_id"`
+	VendorName           string              `json:"vendor_name"`
+	Type                 models.MenuCategory `json:"category"`
+	Price                uint                `json:"price"`
+	COGS                 uint                `json:"cogs"`
+	PreOrderDays         uint                `json:"pre_order_days"`
+	PreOrderHours        uint                `json:"pre_order_hours"`
+	MinOrderQty          uint                `json:"min_order_qty"`
+	MaxOrderQty          uint                `json:"max_order_qty"`
+	Image                string              `json:"image"`
+	VendorNoteForMenus   string              `json:"vendor_note_for_menus"`
+	VendorDeliveryCost   uint                `json:"vendor_delivery_cost"`
+	VendorServiceCharge  uint                `json:"vendor_service_charge"`
+	VendorMinOrderAmount uint                `json:"vendor_min_order_amount"`
 }
 
 type MenuDataResponse struct {
-	Data []MenuData		`json:"data"`
-	RowsCount int64		`json:"rowsCount"`
-	TotalRows int64		`json:"totalRows"`
-	
+	Data      []MenuData `json:"data"`
+	RowsCount int64      `json:"rowsCount"`
+	TotalRows int64      `json:"totalRows"`
 }
 
 func GetMenus(c *gin.Context) {
@@ -68,7 +67,7 @@ func GetMenus(c *gin.Context) {
 
 	query := services.DB.Table("menus m").
 		Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
-		m.type AS Type, `+ priceForCustomer +` AS Price, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
+		m.type AS Type, `+priceForCustomer+` AS Price, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
 		m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
 		Joins("JOIN vendors v ON v.id = m.vendor_id").
 		Joins("JOIN users u ON u.id = v.user_id").
@@ -77,7 +76,7 @@ func GetMenus(c *gin.Context) {
 		menuCategory := categoryParam[0]
 		switch menuCategory {
 		case "Food", "Beverage", "Snack", "Fruit", "Grocery", "Others":
-			query = query.Where("m.type = ?", menuCategory)	
+			query = query.Where("m.type = ?", menuCategory)
 		default:
 			messages = append(messages, "Parameter Category yang diberikan tidak sesuai dengan kategori menu yang ada.")
 		}
@@ -116,7 +115,7 @@ func GetMenus(c *gin.Context) {
 	}
 	if doesSearchParamExist {
 		search := searchParam[0]
-		query = query.Where("m.name LIKE ?", "%" + search + "%").Or("u.name LIKE ?", "%" + search + "%")
+		query = query.Where("m.name LIKE ? OR u.name LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
 	if doesVendorIdParamExist {
 		vendorId, err := strconv.Atoi(vendorIdParam[0])
@@ -169,22 +168,22 @@ func GetMenus(c *gin.Context) {
 		fmt.Println(queryErr)
 		messages = append(messages, "Ada kesalahan pada query")
 		c.JSON(404, gin.H{
-			"status": "failed",
-			"errors": messages,
-			"result": nil,
+			"status":      "failed",
+			"errors":      messages,
+			"result":      nil,
 			"description": "Gagal mengambil data menu",
 		})
 	} else {
 		menuData := &MenuDataResponse{
-			Data: menu,
+			Data:      menu,
 			RowsCount: rowsCount,
 			TotalRows: totalRows,
 		}
 
 		c.JSON(200, gin.H{
-			"status": "success",
-			"errors": messages,
-			"result": menuData,
+			"status":      "success",
+			"errors":      messages,
+			"result":      menuData,
 			"description": "Berhasil mengambil data menu",
 		})
 	}
@@ -202,9 +201,9 @@ func GetMenuDetails(c *gin.Context) {
 	if err := c.ShouldBindUri(&uri); err != nil {
 		messages = append(messages, "Menu Id yang terkirim tidak valid.")
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": messages,
-			"result": nil,
+			"status":      "failed",
+			"errors":      messages,
+			"result":      nil,
 			"description": "Ada kesalahan terhadap nilai menu Id",
 		})
 		return
@@ -225,7 +224,7 @@ func GetMenuDetails(c *gin.Context) {
 			Select(`m.id AS ID, m.name AS Name, m.description AS Description, v.id AS VendorID, u.name AS VendorName,
 			v.vendor_note_for_menus AS VendorNoteForMenus, v.vendor_delivery_cost AS VendorDeliveryCost,
 			v.vendor_service_charge AS VendorServiceCharge, v.vendor_min_order_amount AS VendorMinOrderAmount,
-			m.type AS Type, `+ priceForCustomer +` AS Price, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
+			m.type AS Type, `+priceForCustomer+` AS Price, m.cogs AS COGS, m.pre_order_days AS PreOrderDays,
 			m.pre_order_hours AS PreOrderHours, m.min_order_qty AS MinOrderQty, m.max_order_qty AS MaxOrderQty, m.image AS Image`).
 			Joins("JOIN vendors v ON v.id = m.vendor_id").
 			Joins("JOIN users u ON u.id = v.user_id").
@@ -237,26 +236,26 @@ func GetMenuDetails(c *gin.Context) {
 		if queryErr != nil {
 			messages = append(messages, "Ada kesalahan pada query.")
 			c.JSON(400, gin.H{
-				"status": "failed",
-				"errors": messages,
-				"result": nil,
+				"status":      "failed",
+				"errors":      messages,
+				"result":      nil,
 				"description": "Gagal mengambil data detail menu.",
 			})
 			return
 		} else if queryRows == 0 {
 			messages = append(messages, "Tidak ada menu aktif dengan ID tersebut.")
 			c.JSON(400, gin.H{
-				"status": "failed",
-				"errors": messages,
-				"result": nil,
+				"status":      "failed",
+				"errors":      messages,
+				"result":      nil,
 				"description": "Gagal mengambil data detail menu.",
 			})
 			return
 		} else {
 			c.JSON(200, gin.H{
-				"status": "success",
-				"errors": messages,
-				"result": menu,
+				"status":      "success",
+				"errors":      messages,
+				"result":      menu,
 				"description": "Berhasil mengambil data detail menu.",
 			})
 		}
