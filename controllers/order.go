@@ -795,3 +795,68 @@ func OrderDetails(c *gin.Context) {
 		"description": "Berhasil mengambil data order serta rinciannya.",
 	})
 }
+
+func MarkMenuAsAccepted(c *gin.Context) {
+	runtime.GOMAXPROCS(2)
+	// cek apakan user yang mengakses endpoint ini adalah user yang sama dengan yang membuat order
+	// cek apakah order detail id ini masih valid (tidak Cancelled)
+	// update status menu menjadi Accepted
+	// kirim notifikasi ke telegram
+	orderDetailId := c.Param("id")
+	var orderDetail models.OrderDetail
+	orderDetailQuery := services.DB.Preload("Order").Preload("Menu.Vendor.User").Where("id", orderDetailId).Find(&orderDetail)
+	if orderDetailQuery.Error != nil {
+		c.JSON(512, gin.H{
+			"status": "failed",
+			"errors": orderDetailQuery.Error.Error(),
+			"result": nil,
+			"description": "Gagal melakukan query untuk mengecek detail order ini.",
+		})
+		return
+	}
+
+	orderedBy := orderDetail.Order.OrderedBy
+	customerContext := c.MustGet("customer").(models.Customer)
+	customerId := customerContext.ID
+	if orderedBy != customerId {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "User yang mengakses ini bukan orang yang membuat order ini.",
+			"result": nil,
+			"description": "Detail order hanya bisa ditandai sudah diterima oleh orang yang membuat order.",
+		})
+		return
+	}
+
+	orderDetailStatus := orderDetail.Status
+	orderId := strconv.Itoa(int(orderDetail.Order.ID))
+	menuName := orderDetail.Menu.Name
+	vendorName := orderDetail.Menu.Vendor.User.Name
+	if orderDetailStatus == "Cancelled" {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": "Detail order ini sudah berstatus Cancelled.",
+			"result": nil,
+			"description": "Tidak bisa mengubah status detail order yang sudah dibatalkan.",
+		})
+		return
+	}
+
+	customerName := customerContext.User.Name
+	unitName := customerContext.Unit.Name
+	updatedOrderDetail := map[string]interface{}{
+		"status": "Accepted",
+		"updated_at": time.Now(),
+		"created_by": customerName, 
+	}
+	models.UpdateOrderDetail(map[string]interface{}{"id": orderDetailId}, updatedOrderDetail)
+	telegramMessage := "Menu "+ menuName +" dari "+ vendorName +" pada order #" + orderId + " telah diterima oleh " + customerName + " di " + unitName + "."
+	go services.SendTelegramToGroup(telegramMessage)
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"errors": nil,
+		"result": orderDetail,
+		"description": "Berhasil mengubah status menu ini menjadi Accepted.",
+	})	
+}

@@ -46,6 +46,7 @@ func main() {
 			{
 				authorizedActiveCustomer.GET("/orders", controllers.GetOrders)
 				authorizedActiveCustomer.POST("/orders", controllers.CreateOrder)
+				authorizedActiveCustomer.PATCH("/order-details/:id/accepted", controllers.MarkMenuAsAccepted)
 				authorizedActiveCustomer.POST("v1/orders", controllers.CreateOrderV1)
 			}
 		}
