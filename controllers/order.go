@@ -773,12 +773,22 @@ func OrderDetails(c *gin.Context) {
 				Where("order_id", orderId).Scan(&orderDetail)
 	orderDetailQueryError := orderDetailQuery.Error
 	
-	if orderQueryError != nil || orderDetailQueryError != nil {
+	if orderQueryError != nil {
 		c.JSON(400, gin.H{
 			"status": "failed",
 			"result": nil,
-			"errors": orderQueryError.Error() + " & " + orderDetailQueryError.Error(),
-			"description": "Gagal mengambil data order serta rinciannya dari database.",
+			"errors": orderQueryError.Error(),
+			"description": "Gagal mengambil data order dari database.",
+		})
+		return
+	}
+
+	if orderDetailQueryError != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"result": nil,
+			"errors": orderDetailQueryError.Error(),
+			"description": "Gagal mengambil data rincian order dari database.",
 		})
 		return
 	}
