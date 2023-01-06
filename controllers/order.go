@@ -730,20 +730,40 @@ type OrderDetailsUri struct {
 }
 
 type OrderDetailResult struct {
-	ID uint64					`json:"id"`
-	MenuID uint64			`json:"menu_id"`
-	MenuName string		`json:"menu_name"`
-	MenuImage string 	`json:"menu_image"`
-	VendorName string	`json:"vendor_name"`
-	Price uint64			`json:"price"`
-	Qty uint					`json:"qty"`
-	Note string				`json:"note"`
-	Status string			`json:"status"`
+	ID uint64										`json:"id"`
+	MenuID uint64								`json:"menu_id"`
+	MenuName string							`json:"menu_name"`
+	MenuImage string 						`json:"menu_image"`
+	VendorName string						`json:"vendor_name"`
+	Price uint64								`json:"price"`
+	Qty uint										`json:"qty"`
+	Note string									`json:"note"`
+	Status string								`json:"status"`
+}
+
+type CostResult struct {
+	ID uint64										`json:"id"`
+	OrderDetailID uint64				`json:"order_detail_id"`
+	Amount uint									`json:"amount"`
+	Reason string								`json:"reason"`
+	Issuer string								`json:"issuer"`
+	Status string								`json:"status"`
+}
+
+type DiscountResult struct {
+	ID uint64										`json:"id"`
+	OrderDetailID uint64				`json:"order_detail_id"`
+	Amount uint									`json:"amount"`
+	Reason string								`json:"reason"`
+	Issuer string								`json:"issuer"`
+	Status string								`json:"status"`
 }
 
 func OrderDetails(c *gin.Context) {
 	var order OrderResult
 	var orderDetail []OrderDetailResult
+	var costs []CostResult
+	var discounts []DiscountResult
 	var uri OrderDetailsUri
 	if err := c.ShouldBindUri(&uri); err != nil {
 		c.JSON(400, gin.H{
@@ -762,6 +782,15 @@ func OrderDetails(c *gin.Context) {
 				status AS Status, created_at AS CreatedAt`).
 				Where("id = ?", orderId).Order("id ASC").Limit(1).Scan(&order)
 	orderQueryError := orderQuery.Error
+	if orderQueryError != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"result": nil,
+			"errors": orderQueryError.Error(),
+			"description": "Gagal mengambil data order dari database.",
+		})
+		return
+	}
 
 	orderDetailQuery := services.DB.Table("order_details od").
 				Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS MenuName, m.image AS MenuImage, 
@@ -772,16 +801,6 @@ func OrderDetails(c *gin.Context) {
 				Joins("JOIN users u ON v.user_id = u.id").
 				Where("order_id", orderId).Scan(&orderDetail)
 	orderDetailQueryError := orderDetailQuery.Error
-	
-	if orderQueryError != nil {
-		c.JSON(400, gin.H{
-			"status": "failed",
-			"result": nil,
-			"errors": orderQueryError.Error(),
-			"description": "Gagal mengambil data order dari database.",
-		})
-		return
-	}
 
 	if orderDetailQueryError != nil {
 		c.JSON(400, gin.H{
@@ -793,9 +812,36 @@ func OrderDetails(c *gin.Context) {
 		return
 	}
 
+	subQuery := services.DB.Select("id").Where("order_id", orderId).Table("order_details")
+	costQuery := services.DB.Select("id AS ID, order_detail_id AS OrderDetailID, amount AS Amount, reason AS Reason, issuer AS Issuer, status AS Status").Table("costs").Where("order_detail_id IN (?)", subQuery).Scan(&costs)
+
+	if costQuery.Error != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": costQuery.Error.Error(),
+			"result": nil,
+			"description": "Gagal mengambil data biaya yang ada pada order ini.",
+		})
+		return
+	}
+
+	discountQuery := services.DB.Select("id AS ID, order_detail_id AS OrderDetailID, amount AS Amount, reason AS Reason, issuer AS Issuer, status AS Status").Table("discounts").Where("order_detail_id IN (?)", subQuery).Scan(&discounts)
+
+	if discountQuery.Error != nil {
+		c.JSON(400, gin.H{
+			"status": "failed",
+			"errors": discountQuery.Error.Error(),
+			"result": nil,
+			"description": "Gagal mengambil data diskon yang ada pada order ini.",
+		})
+		return
+	}
+
 	result := map[string]interface{}{
 		"order": order,
 		"details": orderDetail,
+		"costs": costs,
+		"discounts": discounts,
 	}
 
 	c.JSON(200, gin.H{
