@@ -2,24 +2,25 @@ package controllers
 
 import (
 	"runtime"
-	"time"
 	"strconv"
-	"github.com/gin-gonic/gin"
-	"github.com/adeindriawan/itsfood-commerce/services"
-	"github.com/adeindriawan/itsfood-commerce/models"
-	"github.com/adeindriawan/itsfood-commerce/utils"
 	"strings"
+	"time"
+
+	"github.com/adeindriawan/itsfood-commerce/models"
+	"github.com/adeindriawan/itsfood-commerce/services"
+	"github.com/adeindriawan/itsfood-commerce/utils"
+	"github.com/gin-gonic/gin"
 )
 
 type OrderPayload struct {
-	OrderedBy uint64 			`json:"ordered_by"`
-	OrderedFor string			`json:"ordered_for"`
-	OrderedTo string			`json:"ordered_to"`
-	Purpose string				`json:"purpose"`
-	Activity string				`json:"activity"`
-	SourceOfFund string		`json:"source_of_fund"`
-	PaymentOption string	`json:"payment_option"`
-	Info string						`json:"info"`
+	OrderedBy     uint64 `json:"ordered_by"`
+	OrderedFor    string `json:"ordered_for"`
+	OrderedTo     string `json:"ordered_to"`
+	Purpose       string `json:"purpose"`
+	Activity      string `json:"activity"`
+	SourceOfFund  string `json:"source_of_fund"`
+	PaymentOption string `json:"payment_option"`
+	Info          string `json:"info"`
 }
 
 func _menuPreOrderValidated(cartContent []Cart, orderedFor time.Time) (bool, time.Time) {
@@ -57,9 +58,9 @@ func CreateOrderV1(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(422, gin.H{
-			"status": "failed",
-			"errors": err.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      err.Error(),
+			"result":      nil,
 			"description": "Gagal memproses data yang masuk.",
 		})
 		return
@@ -70,9 +71,9 @@ func CreateOrderV1(c *gin.Context) {
 	cartContent, errCartContent := GetCustomerCartContent(customerId)
 	if errCartContent != nil {
 		c.JSON(500, gin.H{
-			"status": "failed",
-			"errors": errCartContent.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      errCartContent.Error(),
+			"result":      nil,
 			"description": "Gagal mengambil isi keranjang user.",
 		})
 		return
@@ -81,20 +82,20 @@ func CreateOrderV1(c *gin.Context) {
 	totalItems := GetCustomerCartItems(cartContent)
 	if totalItems == 0 {
 		c.JSON(404, gin.H{
-			"status": "failed",
-			"errors": nil,
-			"result": nil,
+			"status":      "failed",
+			"errors":      nil,
+			"result":      nil,
 			"description": "Gagal membuat order baru. Keranjang user masih kosong.",
 		})
 		return
 	}
-	
+
 	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor)
 	if errConvertingOrderedFor != nil {
 		c.JSON(500, gin.H{
-			"status": "failed",
-			"errors": errConvertingOrderedFor.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      errConvertingOrderedFor.Error(),
+			"result":      nil,
 			"description": "Gagal mengonversi waktu pengantaran pesanan.",
 		})
 		return
@@ -114,20 +115,20 @@ func CreateOrderV1(c *gin.Context) {
 
 	orderedBy := customerContext.ID
 	newOrder := models.Order{
-		OrderedBy: orderedBy,
-		OrderedFor: orderedFor,
-		OrderedTo: order.OrderedTo,
-		NumOfMenus: uint(totalItems),
-		QtyOfMenus: uint(GetCustomerCartQty(cartContent)),
-		Amount: uint64(GetCustomerCartAmount(cartContent)),
-		Purpose: order.Purpose,
-		Activity: order.Activity,
-		SourceOfFund: order.SourceOfFund,
+		OrderedBy:     orderedBy,
+		OrderedFor:    orderedFor,
+		OrderedTo:     order.OrderedTo,
+		NumOfMenus:    uint(totalItems),
+		QtyOfMenus:    uint(GetCustomerCartQty(cartContent)),
+		Amount:        uint64(GetCustomerCartAmount(cartContent)),
+		Purpose:       order.Purpose,
+		Activity:      order.Activity,
+		SourceOfFund:  order.SourceOfFund,
 		PaymentOption: order.PaymentOption,
-		Info: order.Info,
-		Status: "Created",
-		CreatedAt: time.Now(),
-		CreatedBy: customerContext.User.Name,
+		Info:          order.Info,
+		Status:        "Created",
+		CreatedAt:     time.Now(),
+		CreatedBy:     customerContext.User.Name,
 	}
 
 	// Tambahkan record ke tabel orders dan order details
@@ -135,9 +136,9 @@ func CreateOrderV1(c *gin.Context) {
 	errorCreatingOrder := creatingOrder.Error
 	if errorCreatingOrder != nil {
 		c.JSON(512, gin.H{
-			"status": "failed",
-			"errors": errorCreatingOrder.Error(),
-			"result": order,
+			"status":      "failed",
+			"errors":      errorCreatingOrder.Error(),
+			"result":      order,
 			"description": "Gagal membuat menyimpan order baru ke dalam database.",
 		})
 		return
@@ -151,13 +152,13 @@ func CreateOrderV1(c *gin.Context) {
 
 	for _, v := range cartContent {
 		newOrderDetail := models.OrderDetail{
-			OrderID: newOrderID,
-			MenuID: v.MenuID,
-			Qty: v.Qty,
-			Price: v.Price,
-			COGS: v.COGS,
-			Note: v.Note,
-			Status: "Ordered",
+			OrderID:   newOrderID,
+			MenuID:    v.MenuID,
+			Qty:       v.Qty,
+			Price:     v.Price,
+			COGS:      v.COGS,
+			Note:      v.Note,
+			Status:    "Ordered",
 			CreatedAt: time.Now(),
 			CreatedBy: customerContext.User.Name,
 		}
@@ -165,9 +166,9 @@ func CreateOrderV1(c *gin.Context) {
 		errorCreatingOrderDetails := creatingOrderDetails.Error
 		if errorCreatingOrderDetails != nil {
 			c.JSON(512, gin.H{
-				"status": "failed",
-				"errors": errorCreatingOrderDetails.Error(),
-				"result": v,
+				"status":      "failed",
+				"errors":      errorCreatingOrderDetails.Error(),
+				"result":      v,
 				"description": "Gagal menyimpan data detail order.",
 			})
 			return
@@ -188,22 +189,22 @@ func CreateOrderV1(c *gin.Context) {
 	notifyAdminsViaEmail(newOrder, customerContext, cartContent)
 
 	orderParam := map[string]interface{}{
-		"id": newOrderID,
-		"ordered_to": newOrder.OrderedTo,
+		"id":          newOrderID,
+		"ordered_to":  newOrder.OrderedTo,
 		"ordered_for": orderedForDate,
-		"info": newOrder.Info,
+		"info":        newOrder.Info,
 	}
 	customerParam := map[string]interface{}{
-		"id": customerContext.ID,
-		"name": customerContext.User.Name,
-		"phone": customerContext.User.Phone,
-		"unit_id": customerContext.Unit.ID,
+		"id":        customerContext.ID,
+		"name":      customerContext.User.Name,
+		"phone":     customerContext.User.Phone,
+		"unit_id":   customerContext.Unit.ID,
 		"unit_name": customerContext.Unit.Name,
 	}
 	params := map[string]interface{}{
-		"order": orderParam,
+		"order":    orderParam,
 		"customer": customerParam,
-		"items": itsmineData,
+		"items":    itsmineData,
 	}
 
 	if len(itsmineData) > 0 {
@@ -219,7 +220,7 @@ func CreateOrderV1(c *gin.Context) {
 		"result": map[string]interface{}{
 			"order": newOrder,
 		},
-		"errors": errors,
+		"errors":      errors,
 		"description": "Berhasil membuat order baru.",
 	})
 }
@@ -235,9 +236,9 @@ func CreateOrder(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(422, gin.H{
-			"status": "failed",
-			"errors": err.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      err.Error(),
+			"result":      nil,
 			"description": "Gagal memproses data yang masuk.",
 		})
 		return
@@ -248,9 +249,9 @@ func CreateOrder(c *gin.Context) {
 	cartContent, errCartContent := GetCustomerCartContent(customerId)
 	if errCartContent != nil {
 		c.JSON(500, gin.H{
-			"status": "failed",
-			"errors": errCartContent.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      errCartContent.Error(),
+			"result":      nil,
 			"description": "Gagal mengambil isi keranjang user.",
 		})
 		return
@@ -259,20 +260,20 @@ func CreateOrder(c *gin.Context) {
 	totalItems := GetCustomerCartItems(cartContent)
 	if totalItems == 0 {
 		c.JSON(404, gin.H{
-			"status": "failed",
-			"errors": nil,
-			"result": nil,
+			"status":      "failed",
+			"errors":      nil,
+			"result":      nil,
 			"description": "Gagal membuat order baru. Keranjang user masih kosong.",
 		})
 		return
 	}
-	
-	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor + "+07:00")
+
+	orderedFor, errConvertingOrderedFor := time.Parse(time.RFC3339, order.OrderedFor+"+07:00")
 	if errConvertingOrderedFor != nil {
 		c.JSON(500, gin.H{
-			"status": "failed",
-			"errors": errConvertingOrderedFor.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      errConvertingOrderedFor.Error(),
+			"result":      nil,
 			"description": "Gagal mengonversi waktu pengantaran pesanan.",
 		})
 		return
@@ -292,20 +293,20 @@ func CreateOrder(c *gin.Context) {
 
 	orderedBy := customerContext.ID
 	newOrder := models.Order{
-		OrderedBy: orderedBy,
-		OrderedFor: orderedFor,
-		OrderedTo: order.OrderedTo,
-		NumOfMenus: uint(totalItems),
-		QtyOfMenus: uint(GetCustomerCartQty(cartContent)),
-		Amount: uint64(GetCustomerCartAmount(cartContent)),
-		Purpose: order.Purpose,
-		Activity: order.Activity,
-		SourceOfFund: order.SourceOfFund,
+		OrderedBy:     orderedBy,
+		OrderedFor:    orderedFor,
+		OrderedTo:     order.OrderedTo,
+		NumOfMenus:    uint(totalItems),
+		QtyOfMenus:    uint(GetCustomerCartQty(cartContent)),
+		Amount:        uint64(GetCustomerCartAmount(cartContent)),
+		Purpose:       order.Purpose,
+		Activity:      order.Activity,
+		SourceOfFund:  order.SourceOfFund,
 		PaymentOption: order.PaymentOption,
-		Info: order.Info,
-		Status: "Created",
-		CreatedAt: time.Now(),
-		CreatedBy: customerContext.User.Name,
+		Info:          order.Info,
+		Status:        "Created",
+		CreatedAt:     time.Now(),
+		CreatedBy:     customerContext.User.Name,
 	}
 
 	// Tambahkan record ke tabel orders dan order details
@@ -313,9 +314,9 @@ func CreateOrder(c *gin.Context) {
 	errorCreatingOrder := creatingOrder.Error
 	if errorCreatingOrder != nil {
 		c.JSON(512, gin.H{
-			"status": "failed",
-			"errors": errorCreatingOrder.Error(),
-			"result": order,
+			"status":      "failed",
+			"errors":      errorCreatingOrder.Error(),
+			"result":      order,
 			"description": "Gagal membuat menyimpan order baru ke dalam database.",
 		})
 		return
@@ -329,13 +330,13 @@ func CreateOrder(c *gin.Context) {
 
 	for _, v := range cartContent {
 		newOrderDetail := models.OrderDetail{
-			OrderID: newOrderID,
-			MenuID: v.MenuID,
-			Qty: v.Qty,
-			Price: v.Price,
-			COGS: v.COGS,
-			Note: v.Note,
-			Status: "Ordered",
+			OrderID:   newOrderID,
+			MenuID:    v.MenuID,
+			Qty:       v.Qty,
+			Price:     v.Price,
+			COGS:      v.COGS,
+			Note:      v.Note,
+			Status:    "Ordered",
 			CreatedAt: time.Now(),
 			CreatedBy: customerContext.User.Name,
 		}
@@ -343,9 +344,9 @@ func CreateOrder(c *gin.Context) {
 		errorCreatingOrderDetails := creatingOrderDetails.Error
 		if errorCreatingOrderDetails != nil {
 			c.JSON(512, gin.H{
-				"status": "failed",
-				"errors": errorCreatingOrderDetails.Error(),
-				"result": v,
+				"status":      "failed",
+				"errors":      errorCreatingOrderDetails.Error(),
+				"result":      v,
 				"description": "Gagal menyimpan data detail order.",
 			})
 			return
@@ -361,22 +362,22 @@ func CreateOrder(c *gin.Context) {
 	}
 
 	orderParam := map[string]interface{}{
-		"id": newOrderID,
-		"ordered_to": newOrder.OrderedTo,
+		"id":          newOrderID,
+		"ordered_to":  newOrder.OrderedTo,
 		"ordered_for": orderedForDate,
-		"info": newOrder.Info,
+		"info":        newOrder.Info,
 	}
 	customerParam := map[string]interface{}{
-		"id": customerContext.ID,
-		"name": customerContext.User.Name,
-		"phone": customerContext.User.Phone,
-		"unit_id": customerContext.Unit.ID,
+		"id":        customerContext.ID,
+		"name":      customerContext.User.Name,
+		"phone":     customerContext.User.Phone,
+		"unit_id":   customerContext.Unit.ID,
 		"unit_name": customerContext.Unit.Name,
 	}
 	params := map[string]interface{}{
-		"order": orderParam,
+		"order":    orderParam,
 		"customer": customerParam,
-		"items": itsmineData,
+		"items":    itsmineData,
 	}
 
 	if len(itsmineData) > 0 {
@@ -395,7 +396,7 @@ func CreateOrder(c *gin.Context) {
 		"result": map[string]interface{}{
 			"order": newOrder,
 		},
-		"errors": errors,
+		"errors":      errors,
 		"description": "Berhasil membuat order baru.",
 	})
 }
@@ -472,11 +473,11 @@ func saveVendorDefaultCosts(orderDetailID uint64) bool {
 		if vendorDeliveryCost != 0 {
 			newCost := models.Cost{
 				OrderDetailID: orderDetail.ID,
-				Amount: vendorDeliveryCost,
-				Reason: "Delivery cost",
-				Status: "Unpaid",
-				CreatedAt: time.Now(),
-				CreatedBy: "Itsfood Commerce System",
+				Amount:        vendorDeliveryCost,
+				Reason:        "Delivery cost",
+				Status:        "Unpaid",
+				CreatedAt:     time.Now(),
+				CreatedBy:     "Itsfood Commerce System",
 			}
 
 			services.DB.Create(&newCost)
@@ -485,11 +486,11 @@ func saveVendorDefaultCosts(orderDetailID uint64) bool {
 		if vendorServiceCharge != 0 {
 			newCost := models.Cost{
 				OrderDetailID: orderDetail.ID,
-				Amount: vendorServiceCharge,
-				Reason: "Service charge",
-				Status: "Unpaid",
-				CreatedAt: time.Now(),
-				CreatedBy: "Itsfood Commerce System",
+				Amount:        vendorServiceCharge,
+				Reason:        "Service charge",
+				Status:        "Unpaid",
+				CreatedAt:     time.Now(),
+				CreatedBy:     "Itsfood Commerce System",
 			}
 
 			services.DB.Create(&newCost)
@@ -558,14 +559,14 @@ func _newOrderEmailBody(newOrder models.Order, customerContext models.Customer, 
 	emailMessage += "Informasi tambahan: " + newOrder.Info + "<br>"
 	emailMessage += "Kontak pembeli: " + customerContext.User.Phone + "<br>"
 	emailMessage += "Silakan klik link di bawah ini untuk memproses:<br>"
-	emailMessage += "<a style='font-size:14px; font-weight:bold; text-decoration:none; line-height:40px; width:100%; display:inline-block;' href='https://itsfood.id/publics/proceed-order/"+ orderId +"/" + adminId +"'><span style='color:#000091'>Proses Pesanan Ini</span></a>"
+	emailMessage += "<a style='font-size:14px; font-weight:bold; text-decoration:none; line-height:40px; width:100%; display:inline-block;' href='https://itsfood.id/publics/proceed-order/" + orderId + "/" + adminId + "'><span style='color:#000091'>Proses Pesanan Ini</span></a>"
 
 	return emailMessage
 }
 
 func _cartDetailsForEmail(customerCartContent []Cart) string {
 	cartDetails := "<table><thead><tr><th>Nama Menu</th><th>Nama Vendor</th><th>Jumlah</th><th>Harga Pokok</th><th>Harga Jual</th><th>Pembayaran ke Vendor</th><th>Pembayaran dari Pembeli</th></tr></thead><tbody>"
-	for _, v := range(customerCartContent) {
+	for _, v := range customerCartContent {
 		Qty := strconv.Itoa(int(v.Qty))
 		COGS := strconv.Itoa(int(v.COGS))
 		Price := strconv.Itoa(int(v.Price))
@@ -581,19 +582,22 @@ func _cartDetailsForEmail(customerCartContent []Cart) string {
 }
 
 type OrderResult struct {
-	ID uint64							`json:"id"`
-	OrderedFor string			`json:"ordered_for"`
-	OrderedTo string 			`json:"ordered_to"`
-	NumOfMenus uint				`json:"num_of_menus"`
-	QtyOfMenus uint 			`json:"qty_of_menus"`
-	Amount uint64					`json:"amount"`
-	Purpose string				`json:"purpose"`
-	Activity string 			`json:"activity"`
-	SourceOfFund string		`json:"source_of_fund"`
-	PaymentOption string	`json:"payment_option"`
-	Info string						`json:"info"`
-	Status string					`json:"status"`
-	CreatedAt string			`json:"created_at"`
+	ID            uint64 `json:"id"`
+	OrderedFor    string `json:"ordered_for"`
+	OrderedTo     string `json:"ordered_to"`
+	NumOfMenus    uint   `json:"num_of_menus"`
+	QtyOfMenus    uint   `json:"qty_of_menus"`
+	Amount        uint64 `json:"amount"`
+	TotalDiscount uint64 `json:"total_discount"`
+	TotalCost     uint64 `json:"total_cost"`
+	FinalAmount   uint64 `json:"final_amount"`
+	Purpose       string `json:"purpose"`
+	Activity      string `json:"activity"`
+	SourceOfFund  string `json:"source_of_fund"`
+	PaymentOption string `json:"payment_option"`
+	Info          string `json:"info"`
+	Status        string `json:"status"`
+	CreatedAt     string `json:"created_at"`
 }
 
 func GetOrders(c *gin.Context) {
@@ -615,70 +619,86 @@ func GetOrders(c *gin.Context) {
 	endDeliveryDateParam, doesEndDeliveryDateParamExist := params["delivery_date[end]"]
 	purposeParam, doesPurposeParamExist := params["purpose"]
 	orderQuery := services.DB.Table("orders").
+		Joins("LEFT JOIN order_details ON order_details.order_id = orders.id").
+		Joins("LEFT JOIN costs ON costs.order_detail_id = order_details.id ").
+		Joins("LEFT JOIN discounts ON discounts.order_detail_id = order_details.id").
 		Select(`
-			id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, num_of_menus AS NumOfMenus,
-			qty_of_menus AS QtyOfMenus, amount AS Amount, purpose AS Purpose, activity AS Activity,
-			source_of_fund AS SourceOfFund, payment_option AS PaymentOption, info AS Info,
-			status AS Status, created_at AS CreatedAt
+			orders.id AS ID,
+			orders.ordered_for AS OrderedFor,
+			orders.ordered_to AS OrderedTo,
+			orders.num_of_menus AS NumOfMenus,
+			orders.qty_of_menus AS QtyOfMenus,
+			orders.amount AS Amount,
+			orders.purpose AS Purpose,
+			orders.activity AS Activity,
+			orders.source_of_fund AS SourceOfFund,
+			orders.payment_option AS PaymentOption,
+			orders.info AS Info,
+			orders.status AS Status,
+			orders.created_at AS CreatedAt,
+			IFNULL(SUM(costs.amount), 0) AS TotalCost,
+		  IFNULL(SUM(discounts.amount), 0) AS TotalDiscount,
+			(orders.amount + IFNULL(SUM(costs.amount), 0) - IFNULL(SUM(discounts.amount), 0)) AS FinalAmount
 		`).
-		Where("ordered_by = ?", customerID)
-	
+		Where("orders.ordered_by = ?", customerID)
+
 	if doesStatusParamExist {
 		status := statusParam[0]
-		orderQuery = orderQuery.Where("status IN ?", strings.Split(status, ","))
+		orderQuery = orderQuery.Where("orders.status IN ?", strings.Split(status, ","))
 	}
 
 	if doesStartOrderDateParamExist && !doesEndOrderDateParamExist {
 		startOrderDate := startOrderDateParam[0]
-		orderQuery = orderQuery.Where("created_at >= ?", startOrderDate)
+		orderQuery = orderQuery.Where("orders.created_at >= ?", startOrderDate)
 	}
 
 	if !doesStartOrderDateParamExist && doesEndOrderDateParamExist {
 		endOrderDate := endOrderDateParam[0]
-		orderQuery = orderQuery.Where("created_at <= ?", endOrderDate)
+		orderQuery = orderQuery.Where("orders.created_at <= ?", endOrderDate)
 	}
 
 	if doesStartOrderDateParamExist && doesEndOrderDateParamExist {
 		startOrderDate := startOrderDateParam[0]
 		endOrderDate := endOrderDateParam[0]
-		orderQuery = orderQuery.Where("created_at BETWEEN ? AND ?", startOrderDate, endOrderDate)
+		orderQuery = orderQuery.Where("orders.created_at BETWEEN ? AND ?", startOrderDate, endOrderDate)
 	}
 
 	if doesStartDeliveryDateParamExist && !doesEndDeliveryDateParamExist {
 		startDeliveryDate := startDeliveryDateParam[0]
-		orderQuery = orderQuery.Where("ordered_for >= ?", startDeliveryDate)
+		orderQuery = orderQuery.Where("orders.ordered_for >= ?", startDeliveryDate)
 	}
 
 	if !doesStartDeliveryDateParamExist && doesEndDeliveryDateParamExist {
 		endDeliveryDate := endDeliveryDateParam[0]
-		orderQuery = orderQuery.Where("ordered_for <= ?", endDeliveryDate)
+		orderQuery = orderQuery.Where("orders.ordered_for <= ?", endDeliveryDate)
 	}
 
 	if doesStartDeliveryDateParamExist && doesEndDeliveryDateParamExist {
 		startDeliveryDate := startDeliveryDateParam[0]
 		endDeliveryDate := endDeliveryDateParam[0]
-		orderQuery = orderQuery.Where("ordered_for BETWEEN ? AND ?", startDeliveryDate, endDeliveryDate)
+		orderQuery = orderQuery.Where("orders.ordered_for BETWEEN ? AND ?", startDeliveryDate, endDeliveryDate)
 	}
 
 	if doesPurposeParamExist {
 		purpose := purposeParam[0]
-		orderQuery = orderQuery.Where("purpose LIKE ?", "%"+purpose+"%")
+		orderQuery = orderQuery.Where("orders.purpose LIKE ?", "%"+purpose+"%")
 	}
-	
+
 	if doesIdParamExist {
 		id := idParam[0]
-		orderQuery = orderQuery.Where("id = ?", id)
+		orderQuery = orderQuery.Where("orders.id = ?", id)
 	}
 	if doesPaidParamExist {
 		paid := paidParam[0]
 		if paid == "false" {
-			orderQuery = orderQuery.Where("status IN ?", []string{"Created", "ForwardedPartially", "ForwardedEntirely", "Processed", "Completed", "BilledPartially", "BilledEntirely"})
+			orderQuery = orderQuery.Where("orders.status IN ?", []string{"Created", "ForwardedPartially", "ForwardedEntirely", "Processed", "Completed", "BilledPartially", "BilledEntirely"})
 		}
 
 		if paid == "true" {
-			orderQuery = orderQuery.Where("status IN ?", []string{"Paid", "PaidAndBilledPartially", "PaidAndBilledEntirely", "PaidByCustomerAndToVendor"})
+			orderQuery = orderQuery.Where("orders.status IN ?", []string{"Paid", "PaidAndBilledPartially", "PaidAndBilledEntirely", "PaidByCustomerAndToVendor"})
 		}
 	}
+	orderQuery.Group("orders.id")
 	orderQuery.Scan(&orders)
 	totalRows := orderQuery.RowsAffected
 	if doesLengthParamExist {
@@ -704,23 +724,23 @@ func GetOrders(c *gin.Context) {
 
 	if orderQuery.Error != nil {
 		c.JSON(512, gin.H{
-			"status": "failed",
-			"errors": orderQuery.Error.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      orderQuery.Error.Error(),
+			"result":      nil,
 			"description": "Gagal mengeksekusi query.",
 		})
 	}
 
 	orderData := map[string]interface{}{
-		"data": orders,
+		"data":       orders,
 		"rows_count": rowsCount,
 		"total_rows": totalRows,
 	}
 
 	c.JSON(200, gin.H{
-		"status": "success",
-		"result": orderData,
-		"errors": messages,
+		"status":      "success",
+		"result":      orderData,
+		"errors":      messages,
 		"description": "Berhasil mengambil data order dari user ini.",
 	})
 }
@@ -730,33 +750,33 @@ type OrderDetailsUri struct {
 }
 
 type OrderDetailResult struct {
-	ID uint64										`json:"id"`
-	MenuID uint64								`json:"menu_id"`
-	MenuName string							`json:"menu_name"`
-	MenuImage string 						`json:"menu_image"`
-	VendorName string						`json:"vendor_name"`
-	Price uint64								`json:"price"`
-	Qty uint										`json:"qty"`
-	Note string									`json:"note"`
-	Status string								`json:"status"`
+	ID         uint64 `json:"id"`
+	MenuID     uint64 `json:"menu_id"`
+	MenuName   string `json:"menu_name"`
+	MenuImage  string `json:"menu_image"`
+	VendorName string `json:"vendor_name"`
+	Price      uint64 `json:"price"`
+	Qty        uint   `json:"qty"`
+	Note       string `json:"note"`
+	Status     string `json:"status"`
 }
 
 type CostResult struct {
-	ID uint64										`json:"id"`
-	OrderDetailID uint64				`json:"order_detail_id"`
-	Amount uint									`json:"amount"`
-	Reason string								`json:"reason"`
-	Issuer string								`json:"issuer"`
-	Status string								`json:"status"`
+	ID            uint64 `json:"id"`
+	OrderDetailID uint64 `json:"order_detail_id"`
+	Amount        uint   `json:"amount"`
+	Reason        string `json:"reason"`
+	Issuer        string `json:"issuer"`
+	Status        string `json:"status"`
 }
 
 type DiscountResult struct {
-	ID uint64										`json:"id"`
-	OrderDetailID uint64				`json:"order_detail_id"`
-	Amount uint									`json:"amount"`
-	Reason string								`json:"reason"`
-	Issuer string								`json:"issuer"`
-	Status string								`json:"status"`
+	ID            uint64 `json:"id"`
+	OrderDetailID uint64 `json:"order_detail_id"`
+	Amount        uint   `json:"amount"`
+	Reason        string `json:"reason"`
+	Issuer        string `json:"issuer"`
+	Status        string `json:"status"`
 }
 
 func OrderDetails(c *gin.Context) {
@@ -775,38 +795,38 @@ func OrderDetails(c *gin.Context) {
 
 	orderId := c.Param("id")
 	orderQuery := services.DB.Table("orders").
-				Select(`id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, 
+		Select(`id AS ID, ordered_for AS OrderedFor, ordered_to AS OrderedTo, 
 				num_of_menus AS NumOfMenus, qty_of_menus AS QtyOfMenus, amount AS Amount, purpose AS Purpose, 
 				activity AS Activity, 
 				source_of_fund AS SourceOfFund, payment_option AS PaymentOption, info AS Info, 
 				status AS Status, created_at AS CreatedAt`).
-				Where("id = ?", orderId).Order("id ASC").Limit(1).Scan(&order)
+		Where("id = ?", orderId).Order("id ASC").Limit(1).Scan(&order)
 	orderQueryError := orderQuery.Error
 	if orderQueryError != nil {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"result": nil,
-			"errors": orderQueryError.Error(),
+			"status":      "failed",
+			"result":      nil,
+			"errors":      orderQueryError.Error(),
 			"description": "Gagal mengambil data order dari database.",
 		})
 		return
 	}
 
 	orderDetailQuery := services.DB.Table("order_details od").
-				Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS MenuName, m.image AS MenuImage, 
+		Select(`od.id AS ID, od.menu_id AS MenuID, m.name AS MenuName, m.image AS MenuImage, 
 				u.name AS VendorName, od.price AS Price, od.qty AS Qty,
 				od.note AS Note, od.status AS Status`).
-				Joins("JOIN menus m ON od.menu_id = m.id").
-				Joins("JOIN vendors v ON m.vendor_id = v.id").
-				Joins("JOIN users u ON v.user_id = u.id").
-				Where("order_id", orderId).Scan(&orderDetail)
+		Joins("JOIN menus m ON od.menu_id = m.id").
+		Joins("JOIN vendors v ON m.vendor_id = v.id").
+		Joins("JOIN users u ON v.user_id = u.id").
+		Where("order_id", orderId).Scan(&orderDetail)
 	orderDetailQueryError := orderDetailQuery.Error
 
 	if orderDetailQueryError != nil {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"result": nil,
-			"errors": orderDetailQueryError.Error(),
+			"status":      "failed",
+			"result":      nil,
+			"errors":      orderDetailQueryError.Error(),
 			"description": "Gagal mengambil data rincian order dari database.",
 		})
 		return
@@ -817,9 +837,9 @@ func OrderDetails(c *gin.Context) {
 
 	if costQuery.Error != nil {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": costQuery.Error.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      costQuery.Error.Error(),
+			"result":      nil,
 			"description": "Gagal mengambil data biaya yang ada pada order ini.",
 		})
 		return
@@ -829,25 +849,25 @@ func OrderDetails(c *gin.Context) {
 
 	if discountQuery.Error != nil {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": discountQuery.Error.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      discountQuery.Error.Error(),
+			"result":      nil,
 			"description": "Gagal mengambil data diskon yang ada pada order ini.",
 		})
 		return
 	}
 
 	result := map[string]interface{}{
-		"order": order,
-		"details": orderDetail,
-		"costs": costs,
+		"order":     order,
+		"details":   orderDetail,
+		"costs":     costs,
 		"discounts": discounts,
 	}
 
 	c.JSON(200, gin.H{
-		"status": "success",
-		"errors": nil,
-		"result": result,
+		"status":      "success",
+		"errors":      nil,
+		"result":      result,
 		"description": "Berhasil mengambil data order serta rinciannya.",
 	})
 }
@@ -863,9 +883,9 @@ func MarkMenuAsAccepted(c *gin.Context) {
 	orderDetailQuery := services.DB.Preload("Order").Preload("Menu.Vendor.User").Where("id", orderDetailId).Find(&orderDetail)
 	if orderDetailQuery.Error != nil {
 		c.JSON(512, gin.H{
-			"status": "failed",
-			"errors": orderDetailQuery.Error.Error(),
-			"result": nil,
+			"status":      "failed",
+			"errors":      orderDetailQuery.Error.Error(),
+			"result":      nil,
 			"description": "Gagal melakukan query untuk mengecek detail order ini.",
 		})
 		return
@@ -876,9 +896,9 @@ func MarkMenuAsAccepted(c *gin.Context) {
 	customerId := customerContext.ID
 	if orderedBy != customerId {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": "User yang mengakses ini bukan orang yang membuat order ini.",
-			"result": nil,
+			"status":      "failed",
+			"errors":      "User yang mengakses ini bukan orang yang membuat order ini.",
+			"result":      nil,
 			"description": "Detail order hanya bisa ditandai sudah diterima oleh orang yang membuat order.",
 		})
 		return
@@ -890,9 +910,9 @@ func MarkMenuAsAccepted(c *gin.Context) {
 	vendorName := orderDetail.Menu.Vendor.User.Name
 	if orderDetailStatus == "Cancelled" {
 		c.JSON(400, gin.H{
-			"status": "failed",
-			"errors": "Detail order ini sudah berstatus Cancelled.",
-			"result": nil,
+			"status":      "failed",
+			"errors":      "Detail order ini sudah berstatus Cancelled.",
+			"result":      nil,
 			"description": "Tidak bisa mengubah status detail order yang sudah dibatalkan.",
 		})
 		return
@@ -901,18 +921,18 @@ func MarkMenuAsAccepted(c *gin.Context) {
 	customerName := customerContext.User.Name
 	unitName := customerContext.Unit.Name
 	updatedOrderDetail := map[string]interface{}{
-		"status": "Accepted",
+		"status":     "Accepted",
 		"updated_at": time.Now(),
-		"created_by": customerName, 
+		"created_by": customerName,
 	}
 	models.UpdateOrderDetail(map[string]interface{}{"id": orderDetailId}, updatedOrderDetail)
-	telegramMessage := "Menu "+ menuName +" dari "+ vendorName +" pada order #" + orderId + " telah diterima oleh " + customerName + " di " + unitName + "."
+	telegramMessage := "Menu " + menuName + " dari " + vendorName + " pada order #" + orderId + " telah diterima oleh " + customerName + " di " + unitName + "."
 	go services.SendTelegramToGroup(telegramMessage)
 
 	c.JSON(200, gin.H{
-		"status": "success",
-		"errors": nil,
-		"result": orderDetail,
+		"status":      "success",
+		"errors":      nil,
+		"result":      orderDetail,
 		"description": "Berhasil mengubah status menu ini menjadi Accepted.",
-	})	
+	})
 }
