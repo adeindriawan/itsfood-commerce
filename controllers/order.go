@@ -764,7 +764,7 @@ type OrderDetailResult struct {
 type CostResult struct {
 	ID            uint64 `json:"id"`
 	OrderDetailID uint64 `json:"order_detail_id"`
-	Amount        uint   `json:"amount"`
+	Amount        uint64 `json:"amount"`
 	Reason        string `json:"reason"`
 	Issuer        string `json:"issuer"`
 	Status        string `json:"status"`
@@ -773,7 +773,7 @@ type CostResult struct {
 type DiscountResult struct {
 	ID            uint64 `json:"id"`
 	OrderDetailID uint64 `json:"order_detail_id"`
-	Amount        uint   `json:"amount"`
+	Amount        uint64 `json:"amount"`
 	Reason        string `json:"reason"`
 	Issuer        string `json:"issuer"`
 	Status        string `json:"status"`
@@ -856,6 +856,16 @@ func OrderDetails(c *gin.Context) {
 		})
 		return
 	}
+
+	for _, cost := range costs {
+		order.TotalCost += cost.Amount
+	}
+
+	for _, discount := range discounts {
+		order.TotalDiscount += discount.Amount
+	}
+
+	order.FinalAmount = order.Amount + order.TotalCost - order.TotalDiscount
 
 	result := map[string]interface{}{
 		"order":     order,
